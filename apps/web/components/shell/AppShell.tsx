@@ -38,7 +38,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <div className="brand-copy">
             <b>ECDAT</b>
-            <small>Cryptographic Intelligence</small>
           </div>
         </Link>
         <nav className="rail-nav" aria-label="Primary navigation">
