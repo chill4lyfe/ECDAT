@@ -1,0 +1,9 @@
+from typing import Protocol
+
+from ecdat.domain.models import GraphEdge, GraphNode
+
+
+class GraphStore(Protocol):
+    async def upsert_node(self, node: GraphNode) -> None: ...
+    async def upsert_edge(self, edge: GraphEdge) -> None: ...
+    async def snapshot(self) -> tuple[tuple[GraphNode, ...], tuple[GraphEdge, ...]]: ...

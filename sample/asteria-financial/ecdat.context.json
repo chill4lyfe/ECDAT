@@ -1,0 +1,30 @@
+{
+  "schema": "ecdat.context.v1",
+  "data_classes": [
+    {"id":"payment-records","name":"Payment & Settlement Records","sensitivity":"restricted","lifetime_years":18},
+    {"id":"identity-data","name":"Customer Identity & Session Data","sensitivity":"high","lifetime_years":9},
+    {"id":"regulatory-archive","name":"Regulatory Financial Archive","sensitivity":"restricted","lifetime_years":30},
+    {"id":"partner-contracts","name":"Partner Settlement Payloads","sensitivity":"high","lifetime_years":14},
+    {"id":"telemetry","name":"Operational Telemetry","sensitivity":"medium","lifetime_years":4}
+  ],
+  "services": [
+    {"id":"edge-gateway","name":"Public Edge Gateway","path_prefixes":["gateway/","certs/"],"business_criticality":"critical","public_exposure":true,"confidentiality_required":true,"migration_time_years":2,"protects":["identity-data"]},
+    {"id":"payments-api","name":"Payments API","path_prefixes":["services/payments/","container/","binaries/"],"business_criticality":"critical","public_exposure":true,"confidentiality_required":true,"migration_time_years":4,"protects":["payment-records"]},
+    {"id":"identity-service","name":"Identity Service","path_prefixes":["services/identity/"],"business_criticality":"critical","public_exposure":true,"confidentiality_required":false,"migration_time_years":3,"protects":["identity-data"]},
+    {"id":"archive-service","name":"Regulatory Archive","path_prefixes":["services/archive/"],"business_criticality":"high","public_exposure":false,"confidentiality_required":true,"migration_time_years":7,"protects":["regulatory-archive"]},
+    {"id":"settlement-service","name":"Settlement Service","path_prefixes":["services/settlement/"],"business_criticality":"high","public_exposure":false,"confidentiality_required":true,"migration_time_years":5,"protects":["payment-records"]},
+    {"id":"partner-adapter","name":"Partner Integration Gateway","path_prefixes":["services/partner/"],"business_criticality":"high","public_exposure":true,"confidentiality_required":true,"migration_time_years":6,"protects":["partner-contracts"]},
+    {"id":"messaging-service","name":"Internal Messaging","path_prefixes":["services/messaging/"],"business_criticality":"medium","public_exposure":false,"confidentiality_required":false,"migration_time_years":2,"protects":["identity-data"]},
+    {"id":"analytics-service","name":"Risk Analytics","path_prefixes":["services/analytics/"],"business_criticality":"medium","public_exposure":false,"confidentiality_required":true,"migration_time_years":2,"protects":["telemetry"]}
+  ],
+  "relationships": [
+    {"source":"edge-gateway","target":"identity-service","type":"authenticates_with"},
+    {"source":"edge-gateway","target":"payments-api","type":"connects_to"},
+    {"source":"payments-api","target":"settlement-service","type":"depends_on"},
+    {"source":"payments-api","target":"archive-service","type":"depends_on"},
+    {"source":"partner-adapter","target":"payments-api","type":"depends_on"},
+    {"source":"messaging-service","target":"identity-service","type":"depends_on"},
+    {"source":"analytics-service","target":"payments-api","type":"connects_to"},
+    {"source":"edge-gateway","target":"partner-adapter","type":"connects_to"}
+  ]
+}

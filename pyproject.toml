@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ecdat"
+version = "1.0.0"
+description = "Enterprise cryptographic discovery, quantum-readiness analysis and migration intelligence platform"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.30,<1",
+  "pydantic>=2.10,<3",
+  "pydantic-settings>=2.6,<3",
+  "sqlalchemy>=2.0,<3",
+  "psycopg[binary]>=3.2,<4",
+  "alembic>=1.14,<2",
+  "neo4j>=5.25,<7",
+  "redis>=5,<7",
+  "dramatiq[redis]>=1.17,<3",
+  "structlog>=24,<27",
+  "typer>=0.15,<1",
+  "cryptography>=44,<48",
+  "python-multipart>=0.0.20,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<10",
+  "pytest-asyncio>=0.24,<2",
+  "httpx2>=2.12,<3",
+  "ruff>=0.8,<1",
+  "mypy>=1.13,<2",
+]
+
+[project.scripts]
+ecdat = "ecdat.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ecdat"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["B008"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["ecdat"]
+warn_unused_ignores = true
+plugins = ["pydantic.mypy"]

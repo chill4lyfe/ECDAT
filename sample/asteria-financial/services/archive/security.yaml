@@ -1,0 +1,2 @@
+key_exchange_algorithm: RSA
+encryption_algorithm: AES-256
