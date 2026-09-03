@@ -43,7 +43,7 @@ export default function Home() {
 
       <section className="landing-hero">
         <div className="landing-copy">
-          <div className="eyebrow landing-eyebrow">Enterprise cryptographic intelligence</div>
+          <div className="eyebrow landing-eyebrow">Enterprise </div>
           <h1>One-Stop Solution For Post-Quantum Readiness</h1>
           <p>
             ECDAT turns evidence-backed discovery into a living cryptographic estate, quantum-risk analysis,
