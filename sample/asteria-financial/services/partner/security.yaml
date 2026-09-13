@@ -1,3 +1,2 @@
 key_exchange_algorithm: ECDH
-signature_algorithm: ECDSA
-encryption_algorithm: AES-256
+jwt_algorithm: RS256

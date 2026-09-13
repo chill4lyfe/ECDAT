@@ -128,5 +128,34 @@ class Neo4jGraphStore:
                 )
         return tuple(nodes), tuple(edges)
 
+    async def purge_entities(self, node_ids: set[str], edge_ids: set[str]) -> tuple[int, int]:
+        """Delete graph entities that are safe to remove after an organization reset.
+
+        Callers must pass only identifiers that are not referenced by another
+        organization's persisted scan summaries. This keeps cleanup tenant-aware even
+        though legacy Neo4j node IDs are globally keyed.
+        """
+        if not node_ids and not edge_ids:
+            return 0, 0
+        deleted_edges = 0
+        deleted_nodes = 0
+        async with self.driver.session() as session:
+            if edge_ids:
+                result = await session.run(
+                    "MATCH ()-[r:ECDAT_REL]->() WHERE r.id IN $ids DELETE r",
+                    ids=sorted(edge_ids),
+                )
+                summary = await result.consume()
+                deleted_edges = int(summary.counters.relationships_deleted)
+            if node_ids:
+                result = await session.run(
+                    "MATCH (n:ECDATNode) WHERE n.id IN $ids DETACH DELETE n",
+                    ids=sorted(node_ids),
+                )
+                summary = await result.consume()
+                deleted_nodes = int(summary.counters.nodes_deleted)
+                deleted_edges += int(summary.counters.relationships_deleted)
+        return deleted_nodes, deleted_edges
+
     async def close(self) -> None:
         await self.driver.close()

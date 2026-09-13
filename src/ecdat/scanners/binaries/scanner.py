@@ -26,7 +26,7 @@ _PRINTABLE = re.compile(rb"[ -~]{5,}")
 
 class BinaryHeuristicScanner:
     scanner_id = "binaries.heuristic"
-    version = "0.1.0"
+    version = "0.2.0"
     capabilities = ScannerCapabilities(
         target_kinds=frozenset({TargetKind.DIRECTORY, TargetKind.REPOSITORY, TargetKind.BINARY}),
         deterministic=True,
@@ -51,7 +51,31 @@ class BinaryHeuristicScanner:
 
     @staticmethod
     def _looks_binary(raw: bytes) -> bool:
-        return raw.startswith(b"\x7fELF") or raw.startswith(b"MZ") or b"\x00" in raw[:1024]
+        return (
+            raw.startswith(b"\x7fELF")
+            or raw.startswith(b"MZ")
+            or raw.startswith(b"!<arch>\n")
+            or raw[:4] in {b"\xfe\xed\xfa\xce", b"\xfe\xed\xfa\xcf", b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe"}
+            or b"\x00" in raw[:1024]
+        )
+
+    @staticmethod
+    def _binary_profile(raw: bytes) -> dict[str, object]:
+        if raw.startswith(b"\x7fELF"):
+            fmt = "ELF"
+        elif raw.startswith(b"MZ"):
+            fmt = "PE"
+        elif raw[:4] in {b"\xfe\xed\xfa\xce", b"\xfe\xed\xfa\xcf", b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe"}:
+            fmt = "Mach-O"
+        elif raw.startswith(b"!<arch>\n"):
+            fmt = "static-archive"
+        else:
+            fmt = "unknown"
+        printable = len(_PRINTABLE.findall(raw[:250_000]))
+        nul_ratio = raw[:64_000].count(b"\x00") / max(1, len(raw[:64_000]))
+        likely_stripped = fmt in {"ELF", "PE", "Mach-O"} and printable < 8
+        opaque = nul_ratio > 0.35 and printable < 5
+        return {"binary_format": fmt, "likely_stripped": likely_stripped, "opaque_or_packed_signal": opaque}
 
     def _finding(
         self,
@@ -63,10 +87,15 @@ class BinaryHeuristicScanner:
         indicator: str,
     ) -> Finding:
         rel = relative_path(root, path)
+        try:
+            profile = self._binary_profile(path.read_bytes())
+        except OSError:
+            profile = {"binary_format": "unknown", "likely_stripped": False, "opaque_or_packed_signal": False}
         attrs = {
             "indicator": indicator,
             "binary_path": rel,
-            "limitations": "String/symbol evidence does not prove runtime execution of the cryptographic primitive.",
+            **profile,
+            "limitations": "Static symbol/string evidence does not prove runtime execution; stripped, packed or dynamically resolved crypto may remain invisible.",
         }
         evidence = Evidence(
             detector=self.scanner_id,
@@ -97,6 +126,6 @@ class BinaryHeuristicScanner:
                 properties=attrs,
             ),
             evidence=(evidence,),
-            confidence=confidence_from_score(0.66, "Binary string/symbol heuristic; runtime execution is unverified"),
+            confidence=confidence_from_score(0.72 if method in {"openssl-symbol", "import-or-string-signature"} else 0.64, "Binary format-aware symbol/string heuristic; runtime execution remains unverified"),
             tags=("binary", "heuristic"),
         )

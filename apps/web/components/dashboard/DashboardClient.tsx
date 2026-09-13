@@ -60,10 +60,10 @@ export function DashboardClient() {
     <AppShell>
       <div className="page-wrap dashboard-page">
         <PageHeader
-          eyebrow="ENTERPRISE CRYPTOGRAPHIC INTELLIGENCE / EXECUTIVE OVERVIEW"
+          eyebrow="OVERVIEW / ENTERPRISE CRYPTOGRAPHIC POSTURE"
           title="Cryptographic Posture"
-          subtitle="Evidence-linked discovery becomes a living enterprise graph, explainable quantum risk, and a dependency-aware migration program."
-          actions={<div className="dashboard-header-actions"><Link href="/intake" className="primary-action"><Import size={15} /> NEW ASSESSMENT</Link><button className="ghost-action" onClick={scan} disabled={running}>{running ? <Activity className="spin" size={14} /> : <Play size={14} fill="currentColor" />}{running ? "ASSESSING REFERENCE" : "RUN REFERENCE ASSESSMENT"}</button></div>}
+          subtitle="A decision-focused view of discovered cryptography, quantum-era exposure, system impact and migration priorities — all linked back to retained evidence."
+          actions={<div className="dashboard-header-actions"><Link href="/intake" className="primary-action"><Import size={15} /> Start Assessment</Link><button className="ghost-action" onClick={scan} disabled={running}>{running ? <Activity className="spin" size={14} /> : <Play size={14} fill="currentColor" />}{running ? "Analyzing Demonstration" : "Load Demonstration Assessment"}</button></div>}
         />
 
         {error && <div className="error-strip"><TriangleAlert size={15} />{error}</div>}
@@ -71,8 +71,8 @@ export function DashboardClient() {
         <section className="hero-grid">
           <article className="graph-preview panel-v2">
             <div className="panel-topline">
-              <div><span className="kicker">CRYPTOGRAPHIC ESTATE</span><h2>Enterprise dependency topology</h2></div>
-              <Link href="/graph" className="text-link">OPEN GRAPH <ArrowUpRight size={13} /></Link>
+              <div><span className="kicker">CRYPTOGRAPHIC INVENTORY</span><h2>Cryptographic dependency map</h2></div>
+              <Link href="/graph" className="text-link">Open dependency map <ArrowUpRight size={13} /></Link>
             </div>
             {summary ? (
               <ForceCryptoGraph
@@ -89,41 +89,41 @@ export function DashboardClient() {
             )}
             <div className="graph-legend">
               <span><i className="legend-node service" /> service</span>
-              <span><i className="legend-node crypto" /> crypto asset</span>
-              <span><i className="legend-line" /> dependency flow</span>
-              <span><i className="legend-pulse" /> migration blocker</span>
+              <span><i className="legend-node crypto" /> cryptography</span>
+              <span><i className="legend-risk-ring" /> priority ring</span>
+              <span><i className="legend-pulse" /> blocker ring</span>
             </div>
           </article>
 
           <aside className="signal-column">
-            <MetricCard icon={<Fingerprint size={16} />} label="CRYPTO ASSETS" value={stats.assets} note="normalized evidence-backed assets" />
-            <MetricCard icon={<ShieldAlert size={16} />} label="QUANTUM VULNERABLE" value={stats.vulnerable} note="Shor-sensitive public-key families" emphasis />
-            <MetricCard icon={<TimerReset size={16} />} label="HNDL EXPOSED" value={stats.hndl} note="long-lived confidentiality exposure" danger={stats.hndl > 0} />
-            <MetricCard icon={<DatabaseZap size={16} />} label="MIGRATION BLOCKERS" value={stats.blockers} note="graph-central dependency constraints" />
+            <MetricCard icon={<Fingerprint size={16} />} label="CRYPTOGRAPHIC ASSETS" value={stats.assets} note="verified, normalized cryptographic assets" />
+            <MetricCard icon={<ShieldAlert size={16} />} label="QUANTUM-VULNERABLE" value={stats.vulnerable} note="public-key cryptography requiring transition planning" emphasis />
+            <MetricCard icon={<TimerReset size={16} />} label="LONG-TERM EXPOSURE" value={stats.hndl} note="Harvest-now-decrypt-later (HNDL) conditions" danger={stats.hndl > 0} />
+            <MetricCard icon={<DatabaseZap size={16} />} label="MIGRATION BLOCKERS" value={stats.blockers} note="dependencies that can constrain migration sequencing" />
           </aside>
         </section>
 
         <section className="intel-grid">
           <article className="panel-v2 node-inspector">
-            <div className="panel-topline"><div><span className="kicker">SELECTED SIGNAL</span><h2>{selectedNode?.label ?? "No node selected"}</h2></div>{selectedRisk && <RiskBadge priority={selectedRisk.priority} score={selectedRisk.score} />}</div>
+            <div className="panel-topline"><div><span className="kicker">SELECTED ITEM</span><h2>{selectedNode?.label ?? "No node selected"}</h2></div>{selectedRisk && <RiskBadge priority={selectedRisk.priority} score={selectedRisk.score} />}</div>
             {selectedNode ? (
               <div className="node-inspector-body">
                 <div className="node-type-chip">{selectedNode.node_type.replaceAll("_", " ")}</div>
                 <div className="fact-grid">
                   <Fact label="CENTRALITY" value={formatInsight(summary, selectedNode.id, "centrality")} />
-                  <Fact label="BLAST RADIUS" value={formatInsight(summary, selectedNode.id, "blast_radius")} />
-                  <Fact label="QUANTUM POSTURE" value={selectedRisk?.quantum_posture.replaceAll("_", " ") ?? "context node"} />
-                  <Fact label="MOSCA MARGIN" value={selectedRisk?.mosca_margin_years == null ? "—" : `${selectedRisk.mosca_margin_years}y`} />
+                  <Fact label="AFFECTED SYSTEMS" value={formatInsight(summary, selectedNode.id, "blast_radius")} />
+                  <Fact label="QUANTUM STATUS" value={selectedRisk?.quantum_posture.replaceAll("_", " ") ?? "context node"} />
+                  <Fact label="TIMING MARGIN" value={selectedRisk?.mosca_margin_years == null ? "—" : `${selectedRisk.mosca_margin_years}y`} />
                 </div>
                 {selectedRisk?.factors.slice(0, 3).map((factor) => <div className="reason-row" key={factor.code}><span>+{factor.contribution}</span><div><strong>{factor.label}</strong><p>{factor.rationale}</p></div></div>)}
                 {!selectedRisk && <p className="muted-copy">Select a cryptographic asset node to inspect the explainable risk factors attached to it.</p>}
                 {selectedRisk && <Link href={`/investigate?asset=${selectedRisk.asset_id}`} className="investigate-link">OPEN FULL ASSET INVESTIGATION <ArrowUpRight size={13}/></Link>}
               </div>
-            ) : <div className="empty-copy">Start an assessment or load the reference estate to materialize evidence-linked topology.</div>}
+            ) : <div className="empty-copy">Start an assessment or load the demonstration environment to build the evidence-linked dependency map.</div>}
           </article>
 
           <article className="panel-v2 risk-stack">
-            <div className="panel-topline"><div><span className="kicker">PRIORITY EXPOSURES</span><h2>Highest quantum exposure</h2></div><Link href="/risk" className="text-link">QUANTUM EXPOSURE <ArrowUpRight size={13} /></Link></div>
+            <div className="panel-topline"><div><span className="kicker">PRIORITY ACTIONS</span><h2>Assets requiring the most attention</h2></div><Link href="/risk" className="text-link">Quantum Risk <ArrowUpRight size={13} /></Link></div>
             <div className="risk-list">
               {topRisks.map((risk, index) => {
                 const finding = findingByAsset.get(risk.asset_id);
@@ -138,7 +138,7 @@ export function DashboardClient() {
           </article>
 
           <article className="panel-v2 evidence-pulse">
-            <div className="panel-topline"><div><span className="kicker">EVIDENCE COVERAGE</span><h2>Deterministic provenance</h2></div><Sparkles size={16} /></div>
+            <div className="panel-topline"><div><span className="kicker">ASSESSMENT EVIDENCE</span><h2>Traceable evidence coverage</h2></div><Sparkles size={16} /></div>
             <div className="evidence-metric"><strong>{summary?.findings.reduce((count, finding) => count + finding.evidence.length, 0) ?? 0}</strong><span>evidence records retained</span></div>
             <div className="scanner-bars">
               {(summary?.scanner_executions ?? []).map((scanner) => <div key={scanner.scanner_id} className="scanner-bar"><span>{scanner.scanner_id}</span><i style={{ width: `${Math.max(8, Math.min(100, scanner.finding_count * 8))}%` }} /><code>{scanner.finding_count}</code></div>)}
@@ -147,7 +147,7 @@ export function DashboardClient() {
           </article>
         </section>
 
-        {summary?.coverage && <section className={`coverage-disclosure panel-v2${summary.findings.length === 0 ? " zero" : ""}`}><div><span className="kicker">ANALYSIS COVERAGE</span><h2>{summary.findings.length === 0 ? "No supported cryptographic evidence was detected." : "What this assessment actually inspected"}</h2><p>{summary.findings.length === 0 ? `ECDAT inspected ${summary.coverage.files_observed} files with ${summary.coverage.scanners_completed} completed analyzers. A zero result is not proof that no cryptography exists; unsupported formats, runtime-generated use and dynamically loaded implementations can remain outside static visibility.` : `${summary.coverage.files_observed} files observed · ${summary.coverage.evidence_records} evidence records · ${summary.coverage.scanners_completed} analyzers completed.`}</p></div><div className="coverage-mini"><span><b>{summary.coverage.source_files}</b> source</span><span><b>{summary.coverage.config_files}</b> config</span><span><b>{summary.coverage.dependency_manifests}</b> manifests</span><span><b>{summary.coverage.binary_files}</b> binaries</span></div></section>}
+        {summary?.coverage && <section className={`coverage-disclosure panel-v2${summary.findings.length === 0 ? " zero" : ""}`}><div><span className="kicker">ASSESSMENT COVERAGE</span><h2>{summary.findings.length === 0 ? "No supported cryptographic evidence was detected." : "What this assessment actually inspected"}</h2><p>{summary.findings.length === 0 ? `ECDAT inspected ${summary.coverage.files_observed} files with ${summary.coverage.scanners_completed} completed analyzers. A zero result is not proof that no cryptography exists; unsupported formats, runtime-generated use and dynamically loaded implementations can remain outside static visibility.` : `${summary.coverage.files_observed} files observed · ${summary.coverage.evidence_records} evidence records · ${summary.coverage.scanners_completed} analyzers completed.`}</p></div><div className="coverage-mini"><span><b>{summary.coverage.source_files}</b> source</span><span><b>{summary.coverage.config_files}</b> config</span><span><b>{summary.coverage.dependency_manifests}</b> manifests</span><span><b>{summary.coverage.binary_files}</b> binaries</span></div></section>}
 
         <section className="roadmap-launch-strip panel-v2">
           <div><Route size={18} /><span><b>MIGRATION PLANNING READY</b><small>Convert the current graph into dependency-safe execution waves and contextual PQC/hybrid targets.</small></span></div>

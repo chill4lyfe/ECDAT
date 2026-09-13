@@ -4,10 +4,11 @@ from datetime import datetime
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from ecdat.api.catalog import catalog
+from ecdat.auth.security import Principal, require_analyst, require_authenticated
 from ecdat.domain.enums import TargetKind
 from ecdat.domain.models import RiskContext, ScanRequest, ScanSummary, ScanTarget
 from ecdat.orchestration.pipeline import ScanPipeline
@@ -110,7 +111,9 @@ async def run_directory_scan(
     scanner_ids: list[str] | tuple[str, ...],
     risk_context: RiskContext,
     *,
-    metadata: dict[str, str] | None = None,
+    metadata: dict[str, object] | None = None,
+    organization_id: UUID | None = None,
+    created_by_user_id: UUID | None = None,
 ) -> ScanSummary:
     scanners = select_scanners(scanner_ids)
     if scanner_ids and not scanners:
@@ -125,7 +128,7 @@ async def run_directory_scan(
         summary = await ScanPipeline(scanners=scanners, graph_store=graph_store, risk_engine=QuantumRiskEngine()).run(request, risk_context)
     finally:
         await graph_store.close()
-    catalog.put(summary)
+    catalog.put(summary, organization_id, created_by_user_id)
     return summary
 
 
@@ -142,6 +145,7 @@ async def reference_assessment(
     environment: str = Query(default="Production"),
     owner: str = Query(default="Security Architecture"),
     team: str = Query(default="Platform Cryptography"),
+    principal: Principal = Depends(require_analyst),
 ) -> ScanSummary:
     root = _validate_scan_path(REFERENCE_PATH)
     return await run_directory_scan(
@@ -164,11 +168,13 @@ async def reference_assessment(
             "source": "Reference enterprise workspace",
             "reference": "true",
         },
+        organization_id=principal.organization_id,
+        created_by_user_id=principal.user_id,
     )
 
 
 @router.post("/directory", response_model=ScanSummary)
-async def directory_scan(payload: DirectoryScanPayload) -> ScanSummary:
+async def directory_scan(payload: DirectoryScanPayload, principal: Principal = Depends(require_analyst)) -> ScanSummary:
     root = _validate_scan_path(payload.path)
     return await run_directory_scan(
         root,
@@ -176,11 +182,13 @@ async def directory_scan(payload: DirectoryScanPayload) -> ScanSummary:
         payload.scanner_ids,
         payload.risk_context,
         metadata={"environment": payload.environment, "owner": payload.owner, "team": payload.team, "source": payload.source_name},
+        organization_id=principal.organization_id,
+        created_by_user_id=principal.user_id,
     )
 
 
 @router.post("/bom", response_model=ScanSummary)
-async def bom_scan(payload: BomScanPayload) -> ScanSummary:
+async def bom_scan(payload: BomScanPayload, principal: Principal = Depends(require_analyst)) -> ScanSummary:
     path = _validate_scan_path(payload.path)
     scanners = select_scanners(("bom.cyclonedx",))
     request = ScanRequest(
@@ -194,14 +202,14 @@ async def bom_scan(payload: BomScanPayload) -> ScanSummary:
     )
     from ecdat.graph.memory import InMemoryGraphStore
     summary = await ScanPipeline(scanners=scanners, graph_store=InMemoryGraphStore(), risk_engine=QuantumRiskEngine()).run(request, payload.risk_context)
-    catalog.put(summary)
+    catalog.put(summary, principal.organization_id, principal.user_id)
     return summary
 
 
 @router.get("", response_model=list[ScanHistoryItem])
-async def scan_history(limit: int = Query(default=20, ge=1, le=100)) -> list[ScanHistoryItem]:
+async def scan_history(limit: int = Query(default=20, ge=1, le=100), principal: Principal = Depends(require_authenticated)) -> list[ScanHistoryItem]:
     items: list[ScanHistoryItem] = []
-    for summary, created_at in catalog.list(limit):
+    for summary, created_at in catalog.list(limit, principal.organization_id):
         q = summary.quantum_summary
         metadata = summary.target.metadata
         coverage = summary.coverage
@@ -239,9 +247,9 @@ def _asset_identity(summary: ScanSummary) -> dict[str, AssetDelta]:
 
 
 @router.get("/compare", response_model=ScanComparison)
-async def compare_scans(base_id: UUID, target_id: UUID) -> ScanComparison:
-    base = catalog.get(base_id)
-    target = catalog.get(target_id)
+async def compare_scans(base_id: UUID, target_id: UUID, principal: Principal = Depends(require_authenticated)) -> ScanComparison:
+    base = catalog.get(base_id, principal.organization_id)
+    target = catalog.get(target_id, principal.organization_id)
     if base is None or target is None:
         raise HTTPException(status_code=404, detail="One or both assessments were not found.")
     left, right = _asset_identity(base), _asset_identity(target)
@@ -262,16 +270,16 @@ async def compare_scans(base_id: UUID, target_id: UUID) -> ScanComparison:
 
 
 @router.get("/latest", response_model=ScanSummary)
-async def latest_scan() -> ScanSummary:
-    summary = catalog.latest()
+async def latest_scan(principal: Principal = Depends(require_authenticated)) -> ScanSummary:
+    summary = catalog.latest(principal.organization_id)
     if summary is None:
         raise HTTPException(status_code=404, detail="No assessments have been executed yet.")
     return summary
 
 
 @router.get("/{scan_id}", response_model=ScanSummary)
-async def get_scan(scan_id: UUID) -> ScanSummary:
-    summary = catalog.get(scan_id)
+async def get_scan(scan_id: UUID, principal: Principal = Depends(require_authenticated)) -> ScanSummary:
+    summary = catalog.get(scan_id, principal.organization_id)
     if summary is None:
         raise HTTPException(status_code=404, detail="Assessment not found.")
     return summary

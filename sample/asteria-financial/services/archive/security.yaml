@@ -1,2 +1,2 @@
-key_exchange_algorithm: RSA
-encryption_algorithm: AES-256
+data_encryption_algorithm: AES-256
+signing_algorithm: RSA

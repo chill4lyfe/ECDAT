@@ -10,6 +10,7 @@ from ecdat.domain.enums import AssetType, TargetKind
 from ecdat.domain.models import CryptoAsset, Evidence, Finding, ScanRequest, SourceLocation
 from ecdat.evidence.fingerprint import evidence_fingerprint
 from ecdat.scanners.base import ScannerCapabilities
+from ecdat.scanners.fs import relative_path, resolve_target_root
 
 _LIBRARY_PATHS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"(^|/)libssl(?:\.so(?:\.[0-9.]+)?)?$", re.I), "OpenSSL/libssl"),
@@ -28,19 +29,36 @@ _PACKAGE_DB_SUFFIXES = ("var/lib/dpkg/status", "lib/apk/db/installed")
 class ContainerImageArchiveScanner:
     """Offline Docker/OCI image archive inspection.
 
-    The scanner never executes image content. It traverses image-layer TAR members and
-    package metadata, which is deterministic and safer for an audit-oriented platform.
+    Image contents are never executed. A direct image target scans one TAR; a combined
+    assessment scans TARs staged under ``sources/container-images``. Malformed image
+    archives are isolated from other images so one source cannot erase evidence from
+    the rest of the assessment.
     """
 
     scanner_id = "containers.image_archive"
-    version = "0.4.0"
+    version = "0.5.0"
     capabilities = ScannerCapabilities(
-        target_kinds=frozenset({TargetKind.CONTAINER_IMAGE}),
+        target_kinds=frozenset({TargetKind.CONTAINER_IMAGE, TargetKind.DIRECTORY, TargetKind.REPOSITORY}),
         deterministic=True,
     )
 
     async def scan(self, request: ScanRequest) -> tuple[Finding, ...]:
-        archive = Path(request.target.locator).resolve()
+        root = resolve_target_root(request.target.locator)
+        if root.is_file():
+            return tuple(self._scan_archive(request, root, root.name))
+
+        image_root = root / "sources" / "container-images"
+        if not image_root.is_dir():
+            image_root = root / "container-images"
+        if not image_root.is_dir():
+            return ()
+
+        findings: list[Finding] = []
+        for archive in sorted(path for path in image_root.rglob("*") if path.is_file() and path.name.lower().endswith((".tar", ".tar.gz", ".tgz"))):
+            findings.extend(self._scan_archive(request, archive, relative_path(root, archive)))
+        return tuple(findings)
+
+    def _scan_archive(self, request: ScanRequest, archive: Path, logical_archive: str) -> list[Finding]:
         findings: list[Finding] = []
         seen: set[tuple[str, str | None]] = set()
         try:
@@ -57,16 +75,17 @@ class ContainerImageArchiveScanner:
                     layer_bytes = source.read()
                     try:
                         with tarfile.open(fileobj=io.BytesIO(layer_bytes), mode="r:*") as layer:
-                            findings.extend(self._inspect_layer(request, member.name, layer, seen))
+                            findings.extend(self._inspect_layer(request, logical_archive, member.name, layer, seen))
                     except tarfile.TarError:
                         continue
         except (OSError, tarfile.TarError):
-            return ()
-        return tuple(findings)
+            return []
+        return findings
 
     def _inspect_layer(
         self,
         request: ScanRequest,
+        logical_archive: str,
         layer_name: str,
         layer: tarfile.TarFile,
         seen: set[tuple[str, str | None]],
@@ -81,7 +100,7 @@ class ContainerImageArchiveScanner:
                     key = (canonical, None)
                     if key not in seen:
                         seen.add(key)
-                        findings.append(self._finding(request, layer_name, normalized, canonical, None, "image-layer-path"))
+                        findings.append(self._finding(request, logical_archive, layer_name, normalized, canonical, None, "image-layer-path"))
             if normalized.endswith(_PACKAGE_DB_SUFFIXES) and member.size <= 3_000_000:
                 source = layer.extractfile(member)
                 if source is None:
@@ -94,14 +113,13 @@ class ContainerImageArchiveScanner:
                     if key in seen:
                         continue
                     seen.add(key)
-                    findings.append(
-                        self._finding(request, layer_name, normalized, canonical, version, "image-package-database")
-                    )
+                    findings.append(self._finding(request, logical_archive, layer_name, normalized, canonical, version, "image-package-database"))
         return findings
 
     def _finding(
         self,
         request: ScanRequest,
+        logical_archive: str,
         layer: str,
         path: str,
         canonical: str,
@@ -109,21 +127,22 @@ class ContainerImageArchiveScanner:
         method: str,
     ) -> Finding:
         attrs = {
-            "image_archive": request.target.locator,
+            "image_archive": logical_archive,
             "layer": layer,
             "layer_path": path,
             "offline_inspection": True,
             "runtime_execution_asserted": False,
         }
+        evidence_path = f"{logical_archive}!/{layer}!/{path}"
         evidence = Evidence(
             detector=self.scanner_id,
             detector_version=self.version,
             method=method,
-            location=SourceLocation(uri=request.target.locator, path=f"{layer}!/{path}"),
+            location=SourceLocation(uri=request.target.locator, path=evidence_path),
             fingerprint=evidence_fingerprint(
                 detector=self.scanner_id,
                 locator=request.target.locator,
-                payload={"layer": layer, "path": path, "asset": canonical, "version": version},
+                payload={"archive": logical_archive, "layer": layer, "path": path, "asset": canonical, "version": version},
             ),
             summary=f"{canonical}{f' {version}' if version else ''} observed in offline container image layer {path}.",
             attributes=attrs,

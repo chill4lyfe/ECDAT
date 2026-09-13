@@ -1,0 +1,3 @@
+jwt_algorithm: RS256
+data_encryption_algorithm: AES-256
+key_exchange_algorithm: X25519

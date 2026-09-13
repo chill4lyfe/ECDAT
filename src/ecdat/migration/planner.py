@@ -4,7 +4,7 @@ from collections import defaultdict
 from math import ceil
 from uuid import UUID
 
-from ecdat.domain.enums import GraphEdgeType
+from ecdat.domain.enums import GraphEdgeType, GraphNodeType
 from ecdat.domain.models import ScanSummary
 from ecdat.migration.agility import CryptoAgilityEngine
 from ecdat.migration.models import MigrationAction, MigrationConstraints, MigrationPlanSummary, MigrationRoadmap, MigrationWave
@@ -23,9 +23,15 @@ class MigrationPlanner:
             self.recommendation_engine.recommend(finding, risk_by_asset[finding.asset.id], constraints)
             for finding in summary.findings if finding.asset.id in risk_by_asset
         )
+        # Ownership contexts may come from explicit enterprise services or, when no
+        # context manifest exists, from the supplied repositories/container images.
+        # Source contexts improve action traceability without inventing service topology.
+        node_by_id = {node.id: node for node in summary.graph_nodes}
+        ownership_types = {GraphNodeType.SERVICE, GraphNodeType.CONTAINER, GraphNodeType.REPOSITORY, GraphNodeType.APPLICATION}
         owners: dict[UUID, set[str]] = defaultdict(set)
         for edge in summary.graph_edges:
-            if edge.edge_type is GraphEdgeType.USES and edge.target_id.startswith("asset:") and edge.source_id.startswith("service:"):
+            owner = node_by_id.get(edge.source_id)
+            if edge.edge_type is GraphEdgeType.USES and edge.target_id.startswith("asset:") and owner and owner.node_type in ownership_types:
                 try:
                     owners[UUID(edge.target_id.removeprefix("asset:"))].add(edge.source_id)
                 except ValueError:
@@ -39,14 +45,17 @@ class MigrationPlanner:
         staged: list[dict[str, object]] = []
         for rec in candidates:
             asset_node = f"asset:{rec.asset_id}"
-            service_ids = tuple(sorted(owners.get(rec.asset_id, set())))
+            context_ids = tuple(sorted(owners.get(rec.asset_id, set())))
             blocker = insight_by_node.get(asset_node)
             blocker_bonus = 12 if blocker and blocker.migration_blocker else 0
-            breadth_bonus = min(10, len(service_ids) * 3)
+            # Breadth is a business-impact signal only when explicit service context exists.
+            # Multiple evidence sources must not be mistaken for multiple affected services.
+            service_context_count = sum(1 for context_id in context_ids if context_id.startswith("service:"))
+            breadth_bonus = min(10, service_context_count * 3) if summary.context_manifest_loaded else 0
             effective = min(100, rec.priority_score + blocker_bonus + breadth_bonus)
             action_id = f"migrate:{str(rec.asset_id)[:8]}"
             action_by_asset[rec.asset_id] = action_id
-            staged.append({"rec": rec, "services": service_ids, "score": effective, "id": action_id})
+            staged.append({"rec": rec, "services": context_ids, "score": effective, "id": action_id})
 
         service_assets: dict[str, list[UUID]] = defaultdict(list)
         for asset_id, service_ids in owners.items():
@@ -59,6 +68,9 @@ class MigrationPlanner:
         for edge in summary.graph_edges:
             if edge.edge_type is GraphEdgeType.DEPENDS_ON and edge.source_id.startswith("service:") and edge.target_id.startswith("service:"):
                 service_prereqs[edge.source_id].add(edge.target_id)
+
+        has_dependency_topology = any(service_prereqs.values())
+        sequencing_mode = "dependency_aware" if has_dependency_topology else "evidence_prioritized"
 
         depth_cache: dict[str, int] = {}
         def service_depth(service_id: str, visiting: set[str] | None = None) -> int:
@@ -78,18 +90,44 @@ class MigrationPlanner:
             service_depth(service_id)
 
         wave_by_action: dict[str, int] = {}
-        for item in staged:
-            action_id = str(item["id"])
-            services = tuple(item["services"])
-            rec = item["rec"]
-            insight = insight_by_node.get(f"asset:{rec.asset_id}")
-            shared_or_blocking = len(services) >= 2 or bool(insight and insight.migration_blocker)
-            if shared_or_blocking:
-                wave_by_action[action_id] = 1
-            elif services:
-                wave_by_action[action_id] = max(service_depth(service_id) for service_id in services)
-            else:
-                wave_by_action[action_id] = 1
+        stage_key_by_action: dict[str, str] = {}
+        if has_dependency_topology:
+            for item in staged:
+                action_id = str(item["id"])
+                services = tuple(item["services"])
+                rec = item["rec"]
+                insight = insight_by_node.get(f"asset:{rec.asset_id}")
+                shared_or_blocking = len(services) >= 2 or bool(insight and insight.migration_blocker)
+                if shared_or_blocking:
+                    wave_by_action[action_id] = 1
+                elif services:
+                    wave_by_action[action_id] = max(service_depth(service_id) for service_id in services)
+                else:
+                    wave_by_action[action_id] = 1
+        else:
+            # When dependency topology is not available, do not fabricate dependency waves.
+            # Instead create transparent evidence-prioritized execution stages that remain
+            # useful for engineering triage while carrying no prerequisite claims.
+            stage_order = ("classical", "key_establishment", "signature", "review", "general")
+            present: set[str] = set()
+            for item in staged:
+                rec = item["rec"]
+                categories = {profile.category for profile in rec.target_profiles}
+                if rec.strategy == "classical_remediation":
+                    key = "classical"
+                elif rec.strategy == "context_review":
+                    key = "review"
+                elif categories & {"kem", "hybrid_tls"}:
+                    key = "key_establishment"
+                elif "signature" in categories:
+                    key = "signature"
+                else:
+                    key = "general"
+                stage_key_by_action[str(item["id"])] = key
+                present.add(key)
+            stage_number = {key: index + 1 for index, key in enumerate(key for key in stage_order if key in present)}
+            for action_id, key in stage_key_by_action.items():
+                wave_by_action[action_id] = stage_number[key]
 
         prereq_by_action: dict[str, set[str]] = defaultdict(set)
         for item in staged:
@@ -140,7 +178,18 @@ class MigrationPlanner:
             wave_actions = tuple(action.model_copy(update={"within_change_window": starts <= constraints.change_window_weeks}) for action in wave_actions_raw)
             for action in wave_actions:
                 action_window[action.id] = action.within_change_window
-            title = "Stabilize shared blockers and urgent exposure" if wave_no == 1 else f"Dependency-safe transition wave {wave_no}"
+            if has_dependency_topology:
+                title = "Stabilize shared blockers and urgent exposure" if wave_no == 1 else f"Dependency-safe transition wave {wave_no}"
+            else:
+                stage_titles = {
+                    "classical": "Immediate classical remediation",
+                    "key_establishment": "Key establishment and confidentiality transition",
+                    "signature": "Signature and authentication transition",
+                    "review": "Context resolution and validation",
+                    "general": "Remaining evidence-linked transition work",
+                }
+                stage_key = next((key for action_id, key in stage_key_by_action.items() if wave_by_action.get(action_id) == wave_no), "general")
+                title = stage_titles[stage_key]
             waves.append(MigrationWave(
                 wave=wave_no,
                 title=title,
@@ -156,16 +205,23 @@ class MigrationPlanner:
 
         actions = [action for wave in waves for action in wave.actions]
         agility = self.agility_engine.score(summary)
-        critical_path = self._critical_path(actions)
+        critical_path = self._critical_path(actions) if has_dependency_topology else ()
         within_count = sum(action.within_change_window for action in actions)
+        sequence_explanation = (
+            "Sequencing basis: verified service dependencies are available, so ECDAT can construct dependency-aware migration waves and prerequisites."
+            if has_dependency_topology
+            else "Sequencing basis: service dependency topology is not available. ECDAT groups work into evidence-prioritized execution stages by remediation type; these stages are useful for triage but are not dependency-safe cutover waves."
+        )
         strategy_explanation = (
             {
                 "performance": "Runtime efficiency: favors smaller standardized parameter sets and lower transition overhead where security policy permits.",
                 "balanced": "Balanced transition: favors broadly deployable standardized profiles with interoperability safeguards.",
                 "conservative": "Risk-minimizing transition: favors stronger parameter sets, staged validation and additional safety checks at higher cost.",
             }[constraints.mode],
-            f"Concurrency limit: at most {constraints.max_parallel_actions} migration actions are planned in parallel within a wave.",
+            f"Concurrency limit: at most {constraints.max_parallel_actions} migration actions are planned in parallel within an execution group.",
             f"Change window: actions starting after week {constraints.change_window_weeks} remain visible but are marked outside the current execution window.",
+            sequence_explanation,
+            "Enterprise context quality: explicit service/data context is loaded and used for ownership and business-sensitive planning." if summary.context_manifest_loaded else "Enterprise context quality: no explicit service manifest is loaded; ECDAT retains supplied repository/container ownership and technical evidence, but does not infer business criticality, data lifetime, service dependencies or migration sequencing that the evidence cannot prove.",
             "Calendar weeks are planning estimates derived from relative effort points; they are not project commitments and should be replaced with organization-specific delivery estimates.",
         )
         summary_model = MigrationPlanSummary(
@@ -182,6 +238,8 @@ class MigrationPlanner:
         )
         return MigrationRoadmap(
             scan_id=summary.scan_id,
+            sequencing_mode=sequencing_mode,
+            context_quality="enterprise_context" if summary.context_manifest_loaded else "source_only",
             constraints=constraints,
             recommendations=recommendations,
             agility_scores=agility,

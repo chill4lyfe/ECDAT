@@ -32,7 +32,7 @@ async def test_reference_estate_exercises_full_discovery_pipeline() -> None:
     summary = await reference_summary()
     assert summary.status.value == "completed"
     assert summary.context_manifest_loaded is True
-    assert len(summary.scanner_executions) == 6
+    assert len(summary.scanner_executions) == 9
     assert all(item.status == "completed" for item in summary.scanner_executions)
     assert len(summary.findings) >= 18
     assert summary.coverage is not None

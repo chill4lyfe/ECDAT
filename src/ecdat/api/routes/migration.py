@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from ecdat.api.catalog import catalog
+from ecdat.auth.security import Principal, require_analyst, require_authenticated
 from ecdat.migration.catalog import migration_catalog
 from ecdat.migration.models import MigrationConstraints, MigrationRoadmap
 from ecdat.migration.planner import MigrationPlanner
@@ -21,8 +22,9 @@ class MigrationPlanPayload(BaseModel):
 
 
 @router.post("/plans", response_model=MigrationRoadmap)
-async def create_plan(payload: MigrationPlanPayload) -> MigrationRoadmap:
-    summary = catalog.get(payload.scan_id) if payload.scan_id else catalog.latest()
+async def create_plan(payload: MigrationPlanPayload, principal: Principal = Depends(require_analyst)) -> MigrationRoadmap:
+    organization_id = principal.organization_id if isinstance(principal, Principal) else None
+    summary = catalog.get(payload.scan_id, organization_id) if payload.scan_id else catalog.latest(organization_id)
     if summary is None:
         raise HTTPException(status_code=404, detail="No scan is available for migration planning.")
     planning_summary = summary
@@ -36,21 +38,21 @@ async def create_plan(payload: MigrationPlanPayload) -> MigrationRoadmap:
     plan = MigrationPlanner().build(planning_summary, payload.constraints)
     if planning_horizon is not None:
         plan = plan.model_copy(update={"risk_scenario_horizon_years": planning_horizon})
-    migration_catalog.put(plan)
+    migration_catalog.put(plan, organization_id)
     return plan
 
 
 @router.get("/plans/latest", response_model=MigrationRoadmap)
-async def latest_plan() -> MigrationRoadmap:
-    plan = migration_catalog.latest()
+async def latest_plan(principal: Principal = Depends(require_authenticated)) -> MigrationRoadmap:
+    plan = migration_catalog.latest(principal.organization_id)
     if plan is None:
         raise HTTPException(status_code=404, detail="No migration plan is available for the active workspace.")
     return plan
 
 
 @router.get("/plans/{plan_id}", response_model=MigrationRoadmap)
-async def get_plan(plan_id: UUID) -> MigrationRoadmap:
-    plan = migration_catalog.get(plan_id)
+async def get_plan(plan_id: UUID, principal: Principal = Depends(require_authenticated)) -> MigrationRoadmap:
+    plan = migration_catalog.get(plan_id, principal.organization_id)
     if plan is None:
         raise HTTPException(status_code=404, detail="Migration plan not found.")
     return plan

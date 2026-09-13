@@ -1,7 +1,7 @@
 "use client";
 
 import * as d3 from "d3";
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { GraphEdge, GraphInsight, GraphNode, RiskAssessment } from "@/lib/types";
 
 type SimNode = GraphNode & d3.SimulationNodeDatum;
@@ -52,15 +52,30 @@ export function ForceCryptoGraph({
   const svgRef = useRef<SVGSVGElement | null>(null);
   const onSelectRef = useRef(onSelect);
   const edgeDataRef = useRef<SimLink[]>([]);
+  const [viewport, setViewport] = useState(() => ({ width: compact ? 760 : 1180, height: compact ? 405 : 700 }));
 
   useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
+
+  useLayoutEffect(() => {
+    const element = svgRef.current;
+    if (!element) return;
+    const update = () => {
+      const rect = element.getBoundingClientRect();
+      const width = Math.max(compact ? 520 : 720, Math.round(rect.width));
+      const height = Math.max(compact ? 340 : 560, Math.round(rect.height));
+      setViewport((current) => Math.abs(current.width - width) < 4 && Math.abs(current.height - height) < 4 ? current : { width, height });
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [compact]);
 
   useEffect(() => {
     const svgElement = svgRef.current;
     if (!svgElement || nodes.length === 0) return;
 
-    const width = compact ? 760 : 1180;
-    const height = compact ? 390 : 700;
+    const { width, height } = viewport;
     const suffix = `${compact ? "c" : "f"}-${resetToken}`;
     const svg = d3.select(svgElement);
     svg.selectAll("*").remove();
@@ -127,8 +142,16 @@ export function ForceCryptoGraph({
 
     node.filter((item) => insightByNode.get(item.id)?.migration_blocker === true)
       .append("circle")
-      .attr("class", "blocker-pulse")
-      .attr("r", (item) => nodeRadius(item, insightByNode.get(item.id)) + 9);
+      .attr("class", "blocker-ring")
+      .attr("r", (item) => nodeRadius(item, insightByNode.get(item.id)) + 10);
+
+    node.filter((item) => Boolean(riskForNode(item, riskByAsset)))
+      .append("circle")
+      .attr("class", (item) => {
+        const risk = riskForNode(item, riskByAsset);
+        return `node-risk-ring priority-${risk?.priority ?? "unknown"}`;
+      })
+      .attr("r", (item) => nodeRadius(item, insightByNode.get(item.id)) + 4.5);
 
     node.append("circle")
       .attr("class", "node-disc")
@@ -153,17 +176,17 @@ export function ForceCryptoGraph({
     }
 
     const simulation = d3.forceSimulation<SimNode>(simNodes)
-      .alpha(0.85)
+      .alpha(0.92)
       .alphaDecay(0.035)
       .force("link", d3.forceLink<SimNode, SimLink>(simLinks).id((item) => item.id).distance((item) => {
-        if (item.edge_type === "uses") return compact ? 58 : 95;
-        if (item.edge_type === "protects") return compact ? 68 : 115;
-        return compact ? 82 : 135;
-      }).strength(.55))
-      .force("charge", d3.forceManyBody().strength(compact ? -230 : -520))
-      .force("collision", d3.forceCollide<SimNode>().radius((item) => nodeRadius(item, insightByNode.get(item.id)) + (compact ? 12 : 28)))
-      .force("x", d3.forceX(width / 2).strength(.045))
-      .force("y", d3.forceY(height / 2).strength(.05))
+        if (item.edge_type === "uses") return compact ? 66 : 118;
+        if (item.edge_type === "protects") return compact ? 76 : 138;
+        return compact ? 92 : 162;
+      }).strength(compact ? .5 : .43))
+      .force("charge", d3.forceManyBody().strength(compact ? -300 : -760))
+      .force("collision", d3.forceCollide<SimNode>().radius((item) => nodeRadius(item, insightByNode.get(item.id)) + (compact ? 14 : 32)))
+      .force("x", d3.forceX(width / 2).strength(compact ? .035 : .026))
+      .force("y", d3.forceY(height / 2).strength(compact ? .04 : .028))
       .force("center", d3.forceCenter(width / 2, height / 2));
 
     const drag = d3.drag<SVGGElement, SimNode>()
@@ -183,7 +206,7 @@ export function ForceCryptoGraph({
       });
     node.call(drag);
 
-    simulation.on("tick", () => {
+    const renderTick = () => {
       link.attr("d", (item) => {
         const source = item.source as SimNode;
         const target = item.target as SimNode;
@@ -196,14 +219,46 @@ export function ForceCryptoGraph({
         return `M${sx},${sy} Q${mx},${my} ${tx},${ty}`;
       });
       node.attr("transform", (item) => `translate(${item.x ?? 0},${item.y ?? 0})`);
-    });
+    };
+
+    // Settle deterministically before the first paint, then fit the actual graph bounds
+    // to the rendered viewport. This keeps dense enterprise graphs from occupying only
+    // the upper portion of an otherwise available canvas while preserving zoom/drag.
+    simulation.stop();
+    simulation.tick(compact ? 90 : 130);
+    renderTick();
+
+    if (simNodes.length > 1) {
+      const labelAllowance = compact ? 8 : 34;
+      const minX = Math.min(...simNodes.map((item) => (item.x ?? width / 2) - nodeRadius(item, insightByNode.get(item.id)) - 12));
+      const maxX = Math.max(...simNodes.map((item) => (item.x ?? width / 2) + nodeRadius(item, insightByNode.get(item.id)) + 12));
+      const minY = Math.min(...simNodes.map((item) => (item.y ?? height / 2) - nodeRadius(item, insightByNode.get(item.id)) - 12));
+      const maxY = Math.max(...simNodes.map((item) => (item.y ?? height / 2) + nodeRadius(item, insightByNode.get(item.id)) + labelAllowance));
+      const graphWidth = Math.max(1, maxX - minX);
+      const graphHeight = Math.max(1, maxY - minY);
+      const padX = compact ? 34 : 54;
+      const padY = compact ? 28 : 48;
+      const scale = Math.max(.42, Math.min(
+        compact ? 1.22 : 1.34,
+        (width - padX * 2) / graphWidth,
+        (height - padY * 2) / graphHeight,
+      ));
+      const cx = (minX + maxX) / 2;
+      const cy = (minY + maxY) / 2;
+      const transform = d3.zoomIdentity
+        .translate(width / 2 - scale * cx, height / 2 - scale * cy)
+        .scale(scale);
+      svg.call(zoom.transform, transform);
+    }
+
+    simulation.on("tick", renderTick).alpha(compact ? .08 : .1).restart();
 
     svg.on("dblclick.zoom", null);
     return () => {
       simulation.stop();
       svg.on(".zoom", null);
     };
-  }, [nodes, edges, risks, insights, compact, resetToken]);
+  }, [nodes, edges, risks, insights, compact, resetToken, viewport]);
 
   useEffect(() => {
     const svgElement = svgRef.current;

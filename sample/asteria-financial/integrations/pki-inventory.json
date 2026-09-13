@@ -1,0 +1,7 @@
+{
+  "schema":"ecdat.connector.pki.v1",
+  "certificates":[
+    {"serial":"A57E-1001","service_id":"identity-service","subject":"CN=identity.internal.asteria.example","issuer":"CN=Asteria Enterprise CA","public_key_algorithm":"RSA","key_size_bits":2048,"profile":"internal-service","not_after":"2028-06-30T00:00:00Z"},
+    {"serial":"A57E-1002","service_id":"archive-service","subject":"CN=archive.internal.asteria.example","issuer":"CN=Asteria Enterprise CA","public_key_algorithm":"ECDSA","key_size_bits":256,"profile":"internal-service","not_after":"2029-03-31T00:00:00Z"}
+  ]
+}
