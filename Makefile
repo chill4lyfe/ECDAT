@@ -1,4 +1,4 @@
-.PHONY: up down build rebuild ps logs test check sample verify reset clean
+.PHONY: up down build rebuild ps logs test check sample verify validate-discovery benchmark reset clean
 
 up:
 	docker compose up -d --build
@@ -27,6 +27,12 @@ check:
 
 sample:
 	@docker compose exec -T api python /workspace/scripts/reference_summary.py http://localhost:8000
+
+validate-discovery:
+	docker compose run --rm api sh -lc 'cd /workspace && PYTHONPATH=src python scripts/discovery_validation.py'
+
+benchmark:
+	docker compose run --rm api sh -lc 'cd /workspace && PYTHONPATH=src python scripts/benchmark_assessment.py'
 
 verify:
 	@docker compose exec -T api python /workspace/scripts/verify_stack.py http://localhost:8000 http://web:3000

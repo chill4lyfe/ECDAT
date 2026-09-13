@@ -4,11 +4,12 @@ import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Building2, GitCompa
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { AppShell, PageHeader } from "@/components/shell/AppShell";
-import { compareScans, fetchScanHistory } from "@/lib/api";
-import type { ScanComparison, ScanHistoryItem } from "@/lib/types";
+import { compareScans, fetchAuthState, fetchScanHistory } from "@/lib/api";
+import type { AuthState, ScanComparison, ScanHistoryItem } from "@/lib/types";
 
 export function HistoryClient() {
   const [history, setHistory] = useState<ScanHistoryItem[]>([]);
+  const [auth, setAuth] = useState<AuthState | null>(null);
   const [base, setBase] = useState("");
   const [target, setTarget] = useState("");
   const [comparison, setComparison] = useState<ScanComparison | null>(null);
@@ -18,7 +19,7 @@ export function HistoryClient() {
   async function load() {
     setLoading(true); setError(null);
     try {
-      const items = await fetchScanHistory(60); setHistory(items);
+      const [items, state] = await Promise.all([fetchScanHistory(60), fetchAuthState()]); setHistory(items); setAuth(state);
       if (items.length >= 2) { setTarget(items[0].scan_id); setBase(items[1].scan_id); }
       else if (items.length === 1) setTarget(items[0].scan_id);
     } catch (e) { setError(e instanceof Error ? e.message : "Unable to load assessments"); }
@@ -36,10 +37,10 @@ export function HistoryClient() {
   const totals = useMemo(() => ({ assessments: history.length, assets: latest?.assets ?? 0, evidence: latest?.evidence_count ?? 0, confidence: Math.round((latest?.average_confidence ?? 0) * 100) }), [history, latest]);
 
   return <AppShell><div className="page-wrap history-page">
-    <PageHeader eyebrow="ASSESSMENTS / POSTURE OVER TIME" title="Assessment History" subtitle="Each new enterprise assessment creates one immutable snapshot. Scenario analysis and migration-plan rebuilds are planning revisions against an existing assessment, so they do not create duplicate history entries." actions={<button className="ghost-action" onClick={load} disabled={loading}>{loading ? <Activity className="spin" size={14}/> : <RefreshCw size={14}/>} REFRESH</button>} />
+    <PageHeader eyebrow="GOVERNANCE / ASSESSMENT HISTORY" title="Assessment History" subtitle="Review immutable assessment snapshots over time. Risk scenarios and migration-plan rebuilds remain revisions of an existing assessment, preserving a clean audit history without duplicate records." actions={<button className="ghost-action" onClick={load} disabled={loading}>{loading ? <Activity className="spin" size={14}/> : <RefreshCw size={14}/>} Refresh</button>} />
     {error && <div className="error-strip">{error}</div>}
 
-    <section className="workspace-disclosure panel-v2"><div><Building2 size={17}/><span><strong>Default enterprise workspace</strong><small>Assessment records shown here belong to the active local workspace.</small></span></div><div><UserRound size={15}/><span><strong>Security Architecture</strong><small>Current assessment owner</small></span></div><div><ShieldCheck size={15}/><span><strong>Single-workspace access model</strong><small>Multi-tenant deployment requires identity-backed organization isolation before production use.</small></span></div></section>
+    <section className="workspace-disclosure panel-v2"><div><Building2 size={17}/><span><strong>{auth?.active_organization.name ?? "Active organization"}</strong><small>Only assessment records assigned to this authorized organization are shown.</small></span></div><div><UserRound size={15}/><span><strong>{auth?.user.display_name ?? "Authenticated user"}</strong><small>{auth?.active_organization.role_label ?? "Organization membership verified"}</small></span></div><div><ShieldCheck size={15}/><span><strong>Organization-isolated history</strong><small>Cross-organization assessment IDs are rejected by the API.</small></span></div></section>
 
     <section className="history-metrics">
       <HistoryMetric label="ASSESSMENTS" value={totals.assessments}/><HistoryMetric label="LATEST ASSETS" value={totals.assets}/><HistoryMetric label="EVIDENCE RECORDS" value={totals.evidence}/><HistoryMetric label="AVG CONFIDENCE" value={totals.confidence} suffix="%"/>

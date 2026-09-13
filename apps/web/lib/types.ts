@@ -52,7 +52,7 @@ export type MigrationRecommendation = {
   effort_points: number; confidence: Confidence; standards_basis: string[]; recommendation_version: string;
 };
 export type AgilityFactor = { code: string; label: string; impact: number; rationale: string };
-export type CryptoAgilityScore = { node_id: string; label: string; score: number; difficulty: "low" | "moderate" | "high" | "critical"; coverage: "partial" | "good"; factors: AgilityFactor[] };
+export type CryptoAgilityScore = { node_id: string; label: string; score: number; difficulty: "low" | "moderate" | "high" | "critical"; coverage: "partial" | "good"; basis: "enterprise_context" | "technical_evidence"; factors: AgilityFactor[] };
 export type MigrationAction = {
   id: string; wave: number; node_id: string; label: string; action_type: string; asset_ids: string[]; priority_score: number; effort_points: number; estimated_weeks: number;
   within_change_window: boolean; prerequisite_action_ids: string[]; affected_service_ids: string[]; target_profiles: string[]; rationale: string[];
@@ -62,7 +62,7 @@ export type MigrationWave = {
   starts_week: number; ends_week: number; within_change_window: boolean;
 };
 export type MigrationRoadmap = {
-  plan_id: string; scan_id: string; generated_at: string; risk_scenario_horizon_years?: number | null; constraints: MigrationConstraints; recommendations: MigrationRecommendation[]; agility_scores: CryptoAgilityScore[];
+  plan_id: string; scan_id: string; generated_at: string; risk_scenario_horizon_years?: number | null; sequencing_mode: "dependency_aware" | "evidence_prioritized"; context_quality: "enterprise_context" | "source_only"; constraints: MigrationConstraints; recommendations: MigrationRecommendation[]; agility_scores: CryptoAgilityScore[];
   waves: MigrationWave[]; critical_path: string[]; strategy_explanation: string[];
   summary: { total_actions: number; immediate_actions: number; hybrid_actions: number; pqc_actions: number; classical_remediations: number; total_effort_points: number; lowest_agility_score?: number | null; estimated_calendar_weeks: number; actions_within_window: number; deferred_actions: number };
   standards_snapshot: string[];
@@ -82,3 +82,15 @@ export type ExecutiveReport = {
   migration: { waves: number; actions: number; effort_points: number; lowest_readiness?: number | null; estimated_calendar_weeks: number; actions_within_window: number; deferred_actions: number; critical_path: string[]; strategy_explanation: string[]; standards_basis: string[]; risk_scenario_horizon_years?: number | null };
   assumptions: Record<string, unknown>; limitations: string[];
 };
+
+export type OrganizationRole = "organization_admin" | "security_analyst" | "viewer";
+export type AuthOrganization = { id: string; name: string; slug: string; role: OrganizationRole; role_label: string };
+export type AuthUser = { id: string; email: string; display_name: string };
+export type AuthState = { user: AuthUser; active_organization: AuthOrganization; organizations: AuthOrganization[] };
+export type MemberSummary = {
+  membership_id: string; user_id: string; email: string; display_name: string;
+  role: OrganizationRole; role_label: string; status: "active" | "suspended"; joined_at: string;
+};
+export type InvitationResponse = { invitation_id: string; email: string; role: OrganizationRole; expires_at: string; invite_token: string };
+
+export type AuthSession = { id: string; created_at: string; last_seen_at: string; expires_at: string; active_organization_id: string; current: boolean };

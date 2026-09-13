@@ -2,133 +2,216 @@
 
 ### Enterprise Cryptographic Discovery & Analysis Tool
 
-> ECDAT is a cryptographic discovery and migration-planning platform. It helps organizations discover where cryptography is being used across their software systems, understand which cryptographic assets may become vulnerable in a post-quantum world, trace their impact across dependent services, and plan an actionable migration towards quantum-safe cryptography.
+**SIH26164 · Smart India Hackathon 2026**
+
+We built ECDAT because post-quantum migration has a pretty obvious first problem:
+
+> **you can't migrate cryptography you don't even know you're using.**
+
+In a real company, crypto is scattered everywhere — source code, dependencies, certificates, TLS configs, container images, BOMs, cloud/KMS inventories, old services nobody wants to touch, and probably three places everyone forgot existed.
+
+ECDAT takes the evidence an organization already has, finds the cryptography inside it, keeps track of *where every finding came from*, maps what depends on what, works out what actually needs attention for the quantum era, and turns that into a migration plan people can act on.
+
+So basically, we wanted to go further than:
+
+`RSA found → big red warning → good luck`
 
 ---
 
-## Tech Stack
-
-<p align="center">
-  <img src="https://skillicons.dev/icons?i=nextjs,react,ts,python,fastapi,postgres,redis,neo4j,docker" />
-</p>
-
-**Frontend:** Next.js, React, TypeScript, D3.js  
-**Backend:** Python, FastAPI  
-**Data:** PostgreSQL, Neo4j, Redis  
-**Infrastructure:** Docker & Docker Compose
-
----
-
-## The Problem
-
-Large organizations may use cryptography across thousands of applications, certificates, dependencies, configuration files and services.
-
-Before migrating towards post-quantum cryptography, an organization first needs to answer questions such as:
-
-- Where is cryptography being used?
-- Which algorithms and keys are currently deployed?
-- Where was each cryptographic asset discovered?
-- Which systems depend on it?
-- Which assets are vulnerable to quantum attacks?
-- Which long-lived encrypted data may already have **Harvest Now, Decrypt Later (HNDL)** exposure?
-- What should be migrated first?
-- What dependencies could block the migration?
-
-ECDAT is designed to connect these questions into one workflow.
-
----
-
-## What ECDAT Does
+## What we actually built
 
 ```mermaid
 flowchart LR
-    A[Enterprise Assets] --> B[Cryptographic Discovery]
-    B --> C[Crypto Inventory]
-    C --> D[Cryptographic Estate Graph]
-    D --> E[Quantum Risk Analysis]
-    E --> F[Asset Investigation]
-    F --> G[Migration Planning]
-    G --> H[Decision Reports]
+    A[Enterprise Evidence] --> B[Discovery Scanners]
+    B --> C[Evidence-backed Findings]
+    C --> D[Crypto Inventory]
+    D --> E[CryptoGraph]
+    E --> F[Quantum + HNDL Risk]
+    F --> G[Asset Investigation]
+    G --> H[Migration + Readiness]
+    H --> I[Reports + Exports]
 ```
 
-Organizations can provide source repositories, archives, configurations, certificates, CycloneDX BOMs and supported container-image archives.
+An assessment can combine multiple kinds of input, including:
 
-ECDAT analyzes the supplied evidence and builds an inventory of discovered cryptographic assets. It then connects those assets to affected systems, evaluates quantum-risk planning scenarios and generates dependency-aware migration recommendations.
+- source repositories / archives
+- dependency manifests and configuration files
+- certificates
+- CycloneDX BOMs
+- offline Docker / OCI image archives
+- binaries (with clearly marked heuristic limits)
+- TLS endpoint inventory exports
+- Cloud KMS inventory exports
+- enterprise PKI inventory exports
+- optional `ecdat.context.json` for business/service context
 
----
-
-## Key Features
-
-- Evidence-backed cryptographic discovery
-- Cryptographic asset inventory
-- Interactive dependency and exposure graph
-- Exact evidence and source-location tracing
-- Quantum-vulnerability analysis
-- Mosca-style migration urgency assessment
-- Harvest Now, Decrypt Later exposure analysis
-- Adjustable quantum-risk planning scenarios
-- Asset-level investigation workflow
-- Crypto-agility / migration-readiness assessment
-- Dependency-aware migration roadmap
-- Assessment history and comparison
-- Executive and technical decision reports
-- CycloneDX and CSV exports
-- Enterprise archive and BOM intake
+Every source keeps its own provenance. If the same cryptographic asset shows up through multiple sources, we correlate it instead of pretending they are unrelated findings — while still keeping the original evidence.
 
 ---
 
-## Product Workflow
+## What ECDAT can do
 
-A typical assessment follows this path:
-
-**New Assessment → Discovery → Cryptographic Estate → Quantum Exposure → Asset Investigation → Migration Readiness → Migration Roadmap → Decision Report**
-
-ECDAT also includes a reference enterprise assessment so the complete workflow can be explored without providing external data.
+- discover cryptographic usage across multiple enterprise artifact types
+- normalize findings into a canonical crypto inventory
+- retain exact evidence + source provenance
+- build a provenance-aware **CryptoGraph** of services, libraries, certificates, algorithms, data and dependencies
+- classify quantum posture for RSA/ECC/DH-family crypto, symmetric crypto and standardized PQC
+- model **Harvest Now, Decrypt Later (HNDL)** exposure separately instead of flagging everything blindly
+- run adjustable Mosca-style planning scenarios using data lifetime, migration time and a selected quantum horizon
+- investigate an individual crypto asset all the way from evidence → affected systems → risk → migration action
+- calculate migration readiness / crypto agility
+- recommend standards-based paths such as **ML-KEM, ML-DSA, SLH-DSA** and hybrid TLS where appropriate
+- generate **evidence-prioritized stages** when dependency context is missing
+- generate **dependency-aware migration waves** when trustworthy enterprise topology is available
+- preserve assessment history and migration-plan revisions per organization
+- export executive reports, finding-register CSVs and CycloneDX cryptographic BOM data
+- support local authentication, organization isolation, RBAC, invitations and multi-workspace users
 
 ---
 
-## Running the Project
+## Stages vs Waves 
 
-The only major requirement for running the complete stack is:
-- Docker
-- Docker Compose
+> (yes, we intentionally made these different)
 
-1. Clone the repository
-2. Create env file `cp .env.example .env` (Linux) or `copy .env.example .env` (WINDOWS)
-3. Build & start the application: `sudo docker compose up -d --build` (LINUX) or `docker compose up -d --build` (WINDOWS)
-4. Then open at `http://localhost:3000`
+We did **not** want the roadmap to fake precision. If ECDAT only has technical evidence, it can tell you what is urgent and group work into sensible **execution stages**. But it cannot honestly claim it knows the company's real deployment order. If reviewed enterprise dependencies are supplied, then ECDAT can build **migration waves** with prerequisites, blockers and a defensible critical path.
 
-**If u wanna verify functioning as a dev**
+**Priority answers “what needs attention first?”**  
+**Waves answer “what order can we realistically change this in?”**
+
+---
+
+## Quantum risk, without pretending we know the future
+
+ECDAT treats major classical public-key families such as RSA, DH, ECDH, ECDSA and related ECC schemes as quantum-vulnerable for planning purposes. Strong symmetric/hash crypto is handled differently, and standardized PQC algorithms are treated as the migration baseline.
+
+For timing, we use the simple planning model:
+
+```text
+X = how long the data must stay protected
+Y = how long migration is expected to take
+Z = the organization's selected quantum planning horizon
+
+X + Y > Z  ->  migration urgency / overlap
+```
+
+`Z` is a planning assumption, **not us predicting the exact year a cryptographically relevant quantum computer appears.**
+
+---
+
+## Tech stack
+
+<p align="center">
+  <img src="https://skillicons.dev/icons?i=nextjs,react,ts,python,fastapi,postgres,redis,docker" />
+</p>
+
+**Frontend** — Next.js 15, React 19, TypeScript, D3.js  
+**Backend** — Python 3.12+, FastAPI, Pydantic, SQLAlchemy  
+**Data** — PostgreSQL 16, Neo4j 5, Redis 7  
+**Workers** — Dramatiq  
+**Infrastructure** — Docker + Docker Compose
+
+The complete local stack runs as:
+
+`web · api · worker · postgres · redis · neo4j`
+
+---
+
+## RUNNING IT
+
+You mainly need **Docker** and **Docker Compose**.
+
+```bash
+git clone <repo-url>
+cd <repo-folder>
+cp .env.example .env
+sudo docker compose up -d --build
+```
+
+Then open:
+
+```text
+http://localhost:3000
+```
+
+On the first launch, ECDAT takes you through secure setup for the first organization and its Organization Administrator. After that, users sign in normally; additional users are invitation-only.
+
+### Roles
+
+- **Organization Administrator** — workspace/member management + all assessment actions
+- **Security Architect / Analyst** — assessments, investigation, risk scenarios, migration, readiness and reports
+- **Viewer / Executive** — read-only access
+
+For local HTTP development, `ECDAT_AUTH_COOKIE_SECURE=false` is expected. Turn it on when deploying behind HTTPS.
+
+### DEV CHECKS
+
 ```bash
 sudo docker compose ps
 sudo make test
 sudo make verify
 ```
 
+Other useful targets:
+
+```bash
+sudo make validate-discovery
+sudo make benchmark
+sudo make sample
+```
+
 ---
 
-## Reference Assessment
+## Demo / reference estate
 
-For demonstration and testing, ECDAT contains a fictional enterprise reference estate.
+We ship a fictional enterprise estate under:
 
-It contains proper cryptographic configurations, dependencies, certificates and service relationships designed to exercise the platform's discovery and analysis pipeline.
+```text
+sample/asteria-financial/
+```
 
+It exists so we can demo the entire pipeline — discovery, evidence, graph relationships, HNDL, risk scenarios, migration blockers, readiness, reporting and multi-wave planning — without needing anyone's real enterprise data.
+
+Important bit: the demo is still just **input**. It goes through the same pipeline as normal assessments; the results are not hardcoded.
 
 ---
 
-## Important
+## LIMITATIONS (CURRENT)
 
-> *ECDAT is a hackathon prototype and decision-support system. Quantum-risk horizons are planning assumptions, not predictions of when a cryptographically relevant quantum computer will exist. Scanner coverage and confidence should also be considered when interpreting an assessment.The platform is intended to help security and modernization teams investigate and prioritize cryptographic migration—not replace expert security review.*
+We would rather be clear about this than oversell a hackathon project.
+
+ECDAT does **not** currently claim to be:
+
+- a full live runtime instrumentation platform
+- a universal reverse-engineering / deep binary analysis suite
+- an automatic login-and-scan integration for every cloud/KMS/HSM/PKI product
+- a system that somehow knows business criticality or dependency topology without being given that context
+- a predictor for the exact date of a cryptographically relevant quantum computer
+- proof that every recommended migration will work without vendor, compatibility and performance testing
+
+Binary analysis is heuristic, static evidence has limits, and those limits are meant to stay visible in the product.
+
+---
+
+## Connecting The Whole Story
+
+Not just:
+
+> “We found RSA.”
+
+But:
+
+> “We found RSA **here**, from **this evidence**. It affects **these systems**. Under **these explicit assumptions**, it has **this priority**. These dependencies may block the change. Here is the standards-based target, and here is a migration order we can actually defend.”
+
+That is basically ECDAT.
 
 ---
 
 ## Team
 
-This project was developed as a functional hackathon prototype for **Smart India Hackathon 2026.**
-
+Built as a functional student hackathon project for **Smart India Hackathon 2026 (SIH26164)**.
 
 ---
 
 ## License
 
-This project is licensed under the GPL-3.0 License - see the [LICENSE](LICENSE) file for details.
+Licensed under **GPL-3.0**. See [LICENSE](LICENSE) for details.

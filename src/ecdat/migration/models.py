@@ -64,6 +64,7 @@ class CryptoAgilityScore(MigrationModel):
     score: int = Field(ge=0, le=100)
     difficulty: Literal["low", "moderate", "high", "critical"]
     coverage: Literal["partial", "good"]
+    basis: Literal["enterprise_context", "technical_evidence"] = "enterprise_context"
     factors: tuple[AgilityFactor, ...]
 
 
@@ -114,6 +115,8 @@ class MigrationRoadmap(MigrationModel):
     scan_id: UUID
     generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     risk_scenario_horizon_years: float | None = Field(default=None, gt=0)
+    sequencing_mode: Literal["dependency_aware", "evidence_prioritized"] = "dependency_aware"
+    context_quality: Literal["enterprise_context", "source_only"] = "enterprise_context"
     constraints: MigrationConstraints
     recommendations: tuple[MigrationRecommendation, ...]
     agility_scores: tuple[CryptoAgilityScore, ...]

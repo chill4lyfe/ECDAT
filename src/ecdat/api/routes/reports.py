@@ -4,11 +4,12 @@ import csv
 import io
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from pydantic import BaseModel
 
 from ecdat.api.catalog import catalog
+from ecdat.auth.security import Principal, require_authenticated
 from ecdat.domain.enums import GraphEdgeType
 from ecdat.migration.catalog import migration_catalog
 from ecdat.migration.models import MigrationConstraints
@@ -33,18 +34,19 @@ class ExecutiveReport(BaseModel):
     limitations: list[str]
 
 
-def _report(scan_id: UUID) -> ExecutiveReport:
-    summary = catalog.get(scan_id)
+def _report(scan_id: UUID, organization_id: UUID | None = None) -> ExecutiveReport:
+    summary = catalog.get(scan_id, organization_id)
     if summary is None:
         raise HTTPException(status_code=404, detail="Assessment not found.")
     q = summary.quantum_summary
     ordered = sorted(summary.risk_assessments, key=lambda item: item.score or 0, reverse=True)
     finding_by_asset = {item.asset.id: item for item in summary.findings}
 
-    plan = migration_catalog.latest()
+    plan = migration_catalog.latest(organization_id, scan_id)
     if plan is None or plan.scan_id != summary.scan_id:
+        # Reporting reads must not create a migration-plan revision. Build an
+        # ephemeral default view when the organization has not saved a plan yet.
         plan = MigrationPlanner().build(summary, MigrationConstraints())
-        migration_catalog.put(plan)
     recommendation_by_asset = {item.asset_id: item for item in plan.recommendations}
 
     services_by_asset: dict[str, list[str]] = {}
@@ -169,13 +171,13 @@ def _report(scan_id: UUID) -> ExecutiveReport:
 
 
 @router.get("/scans/{scan_id}/executive", response_model=ExecutiveReport)
-async def executive_report(scan_id: UUID) -> ExecutiveReport:
-    return _report(scan_id)
+async def executive_report(scan_id: UUID, principal: Principal = Depends(require_authenticated)) -> ExecutiveReport:
+    return _report(scan_id, principal.organization_id)
 
 
 @router.get("/scans/{scan_id}/executive.md")
-async def executive_markdown(scan_id: UUID) -> PlainTextResponse:
-    report = _report(scan_id)
+async def executive_markdown(scan_id: UUID, principal: Principal = Depends(require_authenticated)) -> PlainTextResponse:
+    report = _report(scan_id, principal.organization_id)
     lines = [
         f"# {report.title}", "", f"**Overall posture:** {report.posture.upper()}", "", report.headline, "",
         "## Assessment scope",
@@ -215,8 +217,8 @@ async def executive_markdown(scan_id: UUID) -> PlainTextResponse:
 
 
 @router.get("/scans/{scan_id}/findings.csv")
-async def findings_csv(scan_id: UUID) -> StreamingResponse:
-    summary = catalog.get(scan_id)
+async def findings_csv(scan_id: UUID, principal: Principal = Depends(require_authenticated)) -> StreamingResponse:
+    summary = catalog.get(scan_id, principal.organization_id)
     if summary is None:
         raise HTTPException(status_code=404, detail="Assessment not found.")
     risks = {item.asset_id: item for item in summary.risk_assessments}

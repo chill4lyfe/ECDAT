@@ -35,6 +35,19 @@ def _data_node_id(data_id: str) -> str:
     return f"data:{data_id}"
 
 
+def _source_node_id(source_id: str) -> str:
+    return f"source:{source_id}"
+
+
+def _source_node_type(kind: str) -> GraphNodeType:
+    return {
+        "repository": GraphNodeType.REPOSITORY,
+        "container_image": GraphNodeType.CONTAINER,
+        "bom": GraphNodeType.INFRASTRUCTURE,
+        "connector": GraphNodeType.INFRASTRUCTURE,
+    }.get(kind, GraphNodeType.INFRASTRUCTURE)
+
+
 class EnterpriseGraphBuilder:
     """Builds an evidence-linked enterprise graph without inventing topology.
 
@@ -57,22 +70,45 @@ class EnterpriseGraphBuilder:
         if manifest is not None:
             self._add_manifest_graph(manifest, root.id, nodes, edges)
 
+        sources = self._add_supplied_sources(target, root.id, nodes, edges)
+
         for finding in findings:
             crypto = asset_node(finding.asset)
             nodes[crypto.id] = crypto
+
+            supplied_sources = self._sources_for_finding(sources, finding)
+            for source in supplied_sources:
+                relation = _edge(
+                    _source_node_id(str(source["id"])), crypto.id, GraphEdgeType.USES,
+                    evidence_count=sum(1 for evidence in finding.evidence if self._evidence_matches_source(source, evidence.location.path)),
+                    provenance="supplied_source",
+                    source_kind=str(source.get("kind", "artifact")),
+                )
+                edges[relation.id] = relation
 
             owners = self._owners_for_finding(manifest, finding)
             if owners:
                 service_contexts: list[RiskContext] = []
                 for service in owners:
                     owner_id = _service_node_id(service.id)
-                    relation = _edge(owner_id, crypto.id, GraphEdgeType.USES, evidence_count=len(finding.evidence))
+                    relation = _edge(
+                        owner_id, crypto.id, GraphEdgeType.USES,
+                        evidence_count=len(finding.evidence),
+                        provenance="connector" if any(e.attributes.get("provenance") == "enterprise_connector_export" for e in finding.evidence) else "observed_evidence",
+                        detector=finding.scanner_id,
+                    )
                     edges[relation.id] = relation
                     service_contexts.append(manifest.risk_context_for_service(service, fallback_context))
                 contexts[finding.asset.id] = self._merge_contexts(service_contexts, fallback_context)
             else:
-                relation = _edge(root.id, crypto.id, GraphEdgeType.USES, evidence_count=len(finding.evidence))
-                edges[relation.id] = relation
+                if not supplied_sources:
+                    relation = _edge(
+                        root.id, crypto.id, GraphEdgeType.USES,
+                        evidence_count=len(finding.evidence),
+                        provenance="connector" if any(e.attributes.get("provenance") == "enterprise_connector_export" for e in finding.evidence) else "observed_evidence",
+                        detector=finding.scanner_id,
+                    )
+                    edges[relation.id] = relation
                 contexts[finding.asset.id] = fallback_context
 
         return GraphBuildResult(
@@ -81,6 +117,54 @@ class EnterpriseGraphBuilder:
             asset_contexts=contexts,
             manifest_loaded=manifest is not None,
         )
+
+    def _add_supplied_sources(
+        self,
+        target: ScanTarget,
+        root_id: str,
+        nodes: dict[str, GraphNode],
+        edges: dict[str, GraphEdge],
+    ) -> tuple[dict[str, object], ...]:
+        raw_sources = target.metadata.get("sources")
+        if not isinstance(raw_sources, list):
+            return ()
+        sources: list[dict[str, object]] = []
+        for item in raw_sources:
+            if not isinstance(item, dict) or not item.get("id") or not item.get("path_prefix"):
+                continue
+            source = dict(item)
+            source_id = str(source["id"])
+            kind = str(source.get("kind", "artifact"))
+            node = GraphNode(
+                id=_source_node_id(source_id),
+                node_type=_source_node_type(kind),
+                label=str(source.get("display_name") or source.get("filename") or source_id),
+                properties={
+                    "source_kind": kind,
+                    "filename": source.get("filename"),
+                    "path_prefix": source.get("path_prefix"),
+                    "provenance": "supplied_source",
+                },
+            )
+            nodes[node.id] = node
+            relation = _edge(root_id, node.id, GraphEdgeType.CONTAINS, provenance="supplied_source")
+            edges[relation.id] = relation
+            sources.append(source)
+        return tuple(sources)
+
+    @staticmethod
+    def _evidence_matches_source(source: dict[str, object], evidence_path: str | None) -> bool:
+        if not evidence_path:
+            return False
+        prefix = str(source.get("path_prefix") or "").rstrip("/")
+        return bool(prefix) and (evidence_path == prefix or evidence_path.startswith(prefix + "/") or evidence_path.startswith(prefix + "!"))
+
+    def _sources_for_finding(self, sources: tuple[dict[str, object], ...], finding: Finding) -> tuple[dict[str, object], ...]:
+        matches: list[dict[str, object]] = []
+        for source in sources:
+            if any(self._evidence_matches_source(source, evidence.location.path) for evidence in finding.evidence):
+                matches.append(source)
+        return tuple(matches)
 
     def _add_manifest_graph(
         self,
@@ -115,12 +199,12 @@ class EnterpriseGraphBuilder:
                 },
             )
             nodes[node.id] = node
-            contains = _edge(root_id, node.id, GraphEdgeType.CONTAINS)
+            contains = _edge(root_id, node.id, GraphEdgeType.CONTAINS, provenance="declared_context")
             edges[contains.id] = contains
             for data_id in service.protects:
                 if data_id not in data_by_id:
                     continue
-                protects = _edge(node.id, _data_node_id(data_id), GraphEdgeType.PROTECTS)
+                protects = _edge(node.id, _data_node_id(data_id), GraphEdgeType.PROTECTS, provenance="declared_context")
                 edges[protects.id] = protects
 
         edge_map = {
@@ -137,6 +221,7 @@ class EnterpriseGraphBuilder:
                 _service_node_id(relationship.source),
                 _service_node_id(relationship.target),
                 edge_type,
+                provenance="declared_context",
             )
             edges[relation.id] = relation
 
@@ -149,7 +234,15 @@ class EnterpriseGraphBuilder:
             return ()
         owners = []
         seen: set[str] = set()
+        services_by_id = {service.id: service for service in manifest.services}
         for evidence in finding.evidence:
+            declared_service_id = evidence.attributes.get("service_id")
+            if isinstance(declared_service_id, str) and declared_service_id in services_by_id:
+                service = services_by_id[declared_service_id]
+                if service.id not in seen:
+                    owners.append(service)
+                    seen.add(service.id)
+                continue
             service = manifest.service_for_path(evidence.location.path)
             if service is not None and service.id not in seen:
                 owners.append(service)

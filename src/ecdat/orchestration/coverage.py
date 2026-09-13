@@ -44,15 +44,28 @@ def build_coverage(request: ScanRequest, findings: tuple[Finding, ...], executio
         observations.append(f'No deterministic cryptographic evidence was found across {len(files)} observable files with {completed} scanner adapters completing.')
     else:
         observations.append('No filesystem artifacts were available to the selected scanner adapters for this target type.')
+    supplied_sources = request.target.metadata.get("sources")
+    if isinstance(supplied_sources, list) and supplied_sources:
+        kinds = sorted({str(item.get("kind")) for item in supplied_sources if isinstance(item, dict) and item.get("kind")})
+        observations.append(
+            f"Combined assessment correlated {len(supplied_sources)} supplied source(s) across: {', '.join(kinds)}."
+        )
+
+    connector_findings = [item for item in findings if item.scanner_id == 'connectors.enterprise']
+    if connector_findings:
+        connector_types = sorted({tag for item in connector_findings for tag in item.tags if tag in {'tls', 'cloud_kms', 'pki'}})
+        observations.append(f"Enterprise connector telemetry contributed {len(connector_findings)} finding(s) from: {', '.join(connector_types)}.")
     if failed:
         observations.append(f'{failed} scanner adapter(s) failed; absence of findings from those adapters must not be interpreted as absence of cryptography.')
 
     limitations = [
         'A zero-finding result means no supported deterministic evidence was observed; it does not prove cryptography is absent.',
-        'Runtime-only cryptography, managed KMS/HSM use, sidecars, remote services, dynamically loaded code and encrypted/packed artifacts may require additional telemetry or integrations.',
+        'Runtime-only cryptography, HSM activity, sidecars, dynamically loaded code and encrypted/packed artifacts may still require additional telemetry; TLS, cloud-KMS and PKI exports are consumed when supplied.',
     ]
     if request.target.kind in {TargetKind.DIRECTORY, TargetKind.REPOSITORY}:
         limitations.append('Static analysis reflects supplied artifacts and configuration, not every production runtime path.')
+    if isinstance(supplied_sources, list) and supplied_sources and not (Path(request.target.locator) / "ecdat.context.json").is_file():
+        limitations.append('No enterprise context manifest was supplied; business topology and service criticality use operator-wide planning assumptions rather than invented service relationships.')
 
     return ScanCoverage(
         files_observed=len(files),

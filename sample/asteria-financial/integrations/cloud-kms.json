@@ -1,0 +1,7 @@
+{
+  "schema":"ecdat.connector.cloud-kms.v1",
+  "keys":[
+    {"provider":"AWS KMS","key_id":"ledger-rsa-signing","service_id":"ledger-service","algorithm":"RSA_2048","purpose":"signature","key_size_bits":2048,"managed":true,"region":"ap-south-1","rotation_enabled":false},
+    {"provider":"AWS KMS","key_id":"ledger-aes-data","service_id":"ledger-service","algorithm":"AES-256","purpose":"encryption","key_size_bits":256,"managed":true,"region":"ap-south-1","rotation_enabled":true}
+  ]
+}

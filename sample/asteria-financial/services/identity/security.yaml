@@ -1,0 +1,2 @@
+signing_algorithm: ECDSA
+jwt_algorithm: ES256

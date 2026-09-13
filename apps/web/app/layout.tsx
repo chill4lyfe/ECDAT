@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Electrolize, Inter_Tight } from "next/font/google";
+import { Electrolize, Geist } from "next/font/google";
 import "./globals.css";
 
 const display = Electrolize({
@@ -8,15 +8,14 @@ const display = Electrolize({
   weight: "400",
 });
 
-const body = Inter_Tight({
+const body = Geist({
   subsets: ["latin"],
   variable: "--font-body",
-  weight: ["400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
-  title: "ECDAT | Cryptographic Intelligence",
-  description: "Enterprise cryptographic discovery, graph analysis, and quantum migration intelligence.",
+  title: "ECDAT | Enterprise Cryptographic Intelligence",
+  description: "Evidence-led cryptographic discovery, quantum risk analysis, dependency mapping, and migration planning for enterprise environments.",
   icons: {
     icon: "/icons/icon.png",
     shortcut: "/icons/icon.png",

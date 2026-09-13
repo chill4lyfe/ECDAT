@@ -20,7 +20,7 @@ class CycloneDXImporter:
     scanner_id = "cyclonedx.import"
     version = "0.1.0"
 
-    def import_file(self, path: str | Path) -> tuple[Finding, ...]:
+    def import_file(self, path: str | Path, *, logical_path: str | None = None, source_uri: str | None = None) -> tuple[Finding, ...]:
         source = Path(path).expanduser().resolve()
         data = json.loads(source.read_text(encoding="utf-8"))
         if data.get("bomFormat") != "CycloneDX":
@@ -50,7 +50,7 @@ class CycloneDXImporter:
                 detector=self.scanner_id,
                 detector_version=self.version,
                 method="cyclonedx-1.7-json",
-                location=SourceLocation(uri=str(source), path=source.name),
+                location=SourceLocation(uri=source_uri or str(source), path=logical_path or source.name),
                 fingerprint=evidence_fingerprint(
                     detector=self.scanner_id,
                     locator=str(source),

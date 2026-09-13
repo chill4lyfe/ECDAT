@@ -1,3 +1,2 @@
-key_exchange_algorithm: ML-KEM-768
-encryption_algorithm: AES-256
-signature_algorithm: ML-DSA-65
+data_encryption_algorithm: CHACHA20-POLY1305
+signing_algorithm: ML-DSA-44

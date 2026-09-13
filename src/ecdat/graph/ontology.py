@@ -5,7 +5,13 @@ from ecdat.domain.models import CryptoAsset, GraphEdge, GraphNode, ScanTarget
 
 
 def target_node(target: ScanTarget) -> GraphNode:
-    node_type = GraphNodeType.REPOSITORY if target.kind.value in {"repository", "directory"} else GraphNodeType.INFRASTRUCTURE
+    # A combined assessment is a scope/container, not itself a repository. Keeping
+    # that distinction prevents the assessment root from being mistaken for an
+    # owned engineering system in graph/readiness analysis.
+    if isinstance(target.metadata.get("sources"), list):
+        node_type = GraphNodeType.INFRASTRUCTURE
+    else:
+        node_type = GraphNodeType.REPOSITORY if target.kind.value in {"repository", "directory"} else GraphNodeType.INFRASTRUCTURE
     return GraphNode(
         id=f"target:{target.kind}:{target.locator}",
         node_type=node_type,
