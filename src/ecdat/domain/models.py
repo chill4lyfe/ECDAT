@@ -106,6 +106,8 @@ class RiskContext(FrozenModel):
     business_criticality: str | None = None
     public_exposure: bool | None = None
     confidentiality_required: bool | None = None
+    context_profile: str | None = None
+    assumption_basis: str | None = None
 
 
 class RiskFactor(FrozenModel):
@@ -154,6 +156,7 @@ class ScannerExecution(FrozenModel):
     finding_count: int = Field(ge=0)
     duration_ms: float = Field(ge=0)
     error: str | None = None
+    metrics: dict[str, Any] = Field(default_factory=dict)
 
 
 

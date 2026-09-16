@@ -31,13 +31,9 @@ class DirectoryScanPayload(BaseModel):
     source_name: str = "Mounted workspace"
     risk_context: RiskContext = Field(
         default_factory=lambda: RiskContext(
-            data_lifetime_years=12,
-            migration_time_years=4,
             quantum_horizon_years=15,
-            data_sensitivity="high",
-            business_criticality="high",
-            public_exposure=True,
-            confidentiality_required=True,
+            context_profile="evidence_first",
+            assumption_basis="operator",
         )
     )
 
@@ -141,6 +137,8 @@ async def reference_assessment(
     business_criticality: str = Query(default="high"),
     public_exposure: bool = Query(default=True),
     confidentiality_required: bool = Query(default=True),
+    context_profile: str = Query(default="reference_demo"),
+    assumption_basis: str = Query(default="demonstration"),
     display_name: str = Query(default="Asteria Financial Services — Cryptographic Estate"),
     environment: str = Query(default="Production"),
     owner: str = Query(default="Security Architecture"),
@@ -160,6 +158,8 @@ async def reference_assessment(
             business_criticality=business_criticality,
             public_exposure=public_exposure,
             confidentiality_required=confidentiality_required,
+            context_profile=context_profile,
+            assumption_basis=assumption_basis,
         ),
         metadata={
             "environment": environment,

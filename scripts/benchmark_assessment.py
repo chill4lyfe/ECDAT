@@ -29,16 +29,31 @@ async def main() -> None:
     plan = MigrationPlanner().build(summary, MigrationConstraints())
     plan_seconds = perf_counter() - plan_started
     coverage = summary.coverage
+
+    for execution in summary.scanner_executions:
+        metrics = " ".join(f"{key}={value}" for key, value in sorted(execution.metrics.items()))
+        print(
+            f"{execution.scanner_id}: "
+            f"{execution.status} "
+            f"findings={execution.finding_count} "
+            f"time={execution.duration_ms:.2f}ms "
+            f"error={execution.error}"
+            f"{f' metrics=[{metrics}]' if metrics else ''}"
+        )
+
     print("ECDAT reproducible local assessment benchmark")
     print(f"  target: {root}")
     print(f"  files observed: {coverage.files_observed if coverage else 0}")
     print(f"  findings: {len(summary.findings)}")
     print(f"  evidence records: {coverage.evidence_records if coverage else 0}")
     print(f"  graph: {len(summary.graph_nodes)} nodes / {len(summary.graph_edges)} edges")
-    print(f"  scanners: {len(summary.scanner_executions)} completed adapters")
+    completed = sum(x.status == "completed" for x in summary.scanner_executions)
+    failed = sum(x.status == "failed" for x in summary.scanner_executions)
+    print(f"  scanners: {completed} completed / {failed} failed")
     print(f"  scan pipeline: {scan_seconds:.4f}s")
     print(f"  migration planning: {plan_seconds:.4f}s")
-    print(f"  migration programme: {len(plan.waves)} waves / {plan.summary.total_actions} actions")
+    sequencing_unit = "waves" if plan.sequencing_mode == "dependency_aware" else "stages"
+    print(f"  migration programme: {len(plan.waves)} {sequencing_unit} / {plan.summary.total_actions} actions")
     print("  Note: this is a local reproducible workload measurement, not an enterprise-scale throughput claim.")
 
 

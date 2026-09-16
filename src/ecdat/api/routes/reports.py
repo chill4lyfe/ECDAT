@@ -95,10 +95,15 @@ def _report(scan_id: UUID, organization_id: UUID | None = None) -> ExecutiveRepo
     metadata = summary.target.metadata
     coverage = summary.coverage
 
+    sequencing_summary = (
+        f"Sequence migration across {len(plan.waves)} dependency-aware wave(s); shared blockers should be remediated before dependent services."
+        if plan.sequencing_mode == "dependency_aware"
+        else f"Prioritize work across {len(plan.waves)} evidence-based execution stage(s); dependency-safe cutover ordering requires explicit service topology."
+    )
     management_summary = [
         f"Prioritize {critical} critical cryptographic asset(s) before lower-impact modernization work." if critical else "No cryptographic asset currently crosses the critical prioritization threshold under the stored assumptions.",
         f"Treat {hndl} HNDL-exposed asset(s) as confidentiality-timeline decisions, not merely future technology upgrades." if hndl else "No current finding meets the HNDL condition under the stored horizon and exposure assumptions.",
-        f"Sequence migration across {len(plan.waves)} dependency-aware wave(s); shared blockers should be remediated before dependent services.",
+        sequencing_summary,
     ]
     technical_observations = [
         f"{len(summary.findings)} normalized crypto assets are backed by {coverage.evidence_records if coverage else sum(len(item.evidence) for item in summary.findings)} evidence records.",

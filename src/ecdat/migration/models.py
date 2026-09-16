@@ -115,8 +115,8 @@ class MigrationRoadmap(MigrationModel):
     scan_id: UUID
     generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     risk_scenario_horizon_years: float | None = Field(default=None, gt=0)
-    sequencing_mode: Literal["dependency_aware", "evidence_prioritized"] = "dependency_aware"
-    context_quality: Literal["enterprise_context", "source_only"] = "enterprise_context"
+    sequencing_mode: Literal["dependency_aware", "evidence_prioritized"] = "evidence_prioritized"
+    context_quality: Literal["enterprise_context", "source_only"] = "source_only"
     constraints: MigrationConstraints
     recommendations: tuple[MigrationRecommendation, ...]
     agility_scores: tuple[CryptoAgilityScore, ...]

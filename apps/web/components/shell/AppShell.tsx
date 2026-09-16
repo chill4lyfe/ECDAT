@@ -211,7 +211,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   if (authChecking || !auth) {
-    return <main className="secure-gate"><div className="secure-gate-mark"><Hexagon size={28} /><span>ECDAT</span></div><p>Verifying secure workspace access…</p></main>;
+    return <main className="secure-gate"><div className="secure-gate-mark"><Hexagon size={28} /><span>QDeX</span></div><p>Verifying secure workspace access…</p></main>;
   }
 
   return (
@@ -235,7 +235,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="brand-badge">
               {logoError ? <><Hexagon size={25} strokeWidth={1.4} /><span>E</span></> : <img src="/icons/icon.png" alt="" onError={() => setLogoError(true)} />}
             </div>
-            <div className="brand-copy"><b>ECDAT</b><small>Cryptographic Intelligence</small></div>
+            <div className="brand-copy"><b>QDeX</b><small>Cryptographic Intelligence</small></div>
           </Link>
           <button className={pinned ? "sidebar-pin active" : "sidebar-pin"} type="button" aria-pressed={pinned} aria-label={pinned ? "Unpin navigation" : "Pin navigation"} title={pinned ? "Unpin navigation" : "Pin navigation"} onClick={togglePinned}>
             <Pin size={15} fill={pinned ? "currentColor" : "none"} />
@@ -299,6 +299,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
-export function PageHeader({ eyebrow, title, subtitle, actions }: { eyebrow: string; title: string; subtitle: string; actions?: ReactNode }) {
+export function PageHeader({ eyebrow, title, subtitle, actions }: { eyebrow: string; title: string; subtitle?: string; actions?: ReactNode }) {
   return <header className="page-header"><div className="page-header-copy"><div className="eyebrow"><Gauge size={13} />{eyebrow}</div><h1>{title}</h1><p>{subtitle}</p></div>{actions && <div className="page-actions">{actions}</div>}</header>;
 }

@@ -185,13 +185,15 @@ def _extract_tar(
 
 
 def _risk_context(
-    data_lifetime_years: float,
-    migration_time_years: float,
-    quantum_horizon_years: float,
-    data_sensitivity: str,
-    business_criticality: str,
-    public_exposure: bool,
-    confidentiality_required: bool,
+    data_lifetime_years: float | None,
+    migration_time_years: float | None,
+    quantum_horizon_years: float | None,
+    data_sensitivity: str | None,
+    business_criticality: str | None,
+    public_exposure: bool | None,
+    confidentiality_required: bool | None,
+    context_profile: str | None = None,
+    assumption_basis: str | None = None,
 ) -> RiskContext:
     return RiskContext(
         data_lifetime_years=data_lifetime_years,
@@ -201,6 +203,8 @@ def _risk_context(
         business_criticality=business_criticality,
         public_exposure=public_exposure,
         confidentiality_required=confidentiality_required,
+        context_profile=context_profile,
+        assumption_basis=assumption_basis,
     )
 
 
@@ -213,13 +217,15 @@ async def upload_multi_source_assessment(
     environment: str = Form("Production"),
     owner: str = Form("Security Architecture"),
     team: str = Form("Platform Cryptography"),
-    data_lifetime_years: float = Form(12),
-    migration_time_years: float = Form(4),
-    quantum_horizon_years: float = Form(15),
-    data_sensitivity: str = Form("high"),
-    business_criticality: str = Form("high"),
-    public_exposure: bool = Form(True),
-    confidentiality_required: bool = Form(True),
+    data_lifetime_years: float | None = Form(None),
+    migration_time_years: float | None = Form(None),
+    quantum_horizon_years: float | None = Form(15),
+    data_sensitivity: str | None = Form(None),
+    business_criticality: str | None = Form(None),
+    public_exposure: bool | None = Form(None),
+    confidentiality_required: bool | None = Form(None),
+    context_profile: str | None = Form("evidence_first"),
+    assumption_basis: str | None = Form("operator"),
     principal: Principal = Depends(require_analyst),
 ) -> ScanSummary:
     """Create one assessment from multiple independently supplied enterprise sources.
@@ -360,6 +366,8 @@ async def upload_multi_source_assessment(
                 business_criticality,
                 public_exposure,
                 confidentiality_required,
+                context_profile,
+                assumption_basis,
             ),
             metadata={
                 "environment": environment,
@@ -390,13 +398,15 @@ async def upload_archive(
     owner: str = Form("Security Architecture"),
     team: str = Form("Platform Cryptography"),
     scanner_ids: str = Form(""),
-    data_lifetime_years: float = Form(12),
-    migration_time_years: float = Form(4),
-    quantum_horizon_years: float = Form(15),
-    data_sensitivity: str = Form("high"),
-    business_criticality: str = Form("high"),
-    public_exposure: bool = Form(True),
-    confidentiality_required: bool = Form(True),
+    data_lifetime_years: float | None = Form(None),
+    migration_time_years: float | None = Form(None),
+    quantum_horizon_years: float | None = Form(15),
+    data_sensitivity: str | None = Form(None),
+    business_criticality: str | None = Form(None),
+    public_exposure: bool | None = Form(None),
+    confidentiality_required: bool | None = Form(None),
+    context_profile: str | None = Form("evidence_first"),
+    assumption_basis: str | None = Form("operator"),
     principal: Principal = Depends(require_analyst),
 ) -> ScanSummary:
     filename = Path(file.filename or "upload.zip").name
@@ -435,6 +445,8 @@ async def upload_archive(
             business_criticality,
             public_exposure,
             confidentiality_required,
+            context_profile,
+            assumption_basis,
         ),
         metadata={"environment": environment, "owner": owner, "team": team, "source": f"Repository archive: {filename}"},
         organization_id=principal.organization_id,
@@ -449,9 +461,9 @@ async def upload_bom(
     environment: str = Form("Production"),
     owner: str = Form("Security Architecture"),
     team: str = Form("Platform Cryptography"),
-    data_lifetime_years: float = Form(12),
-    migration_time_years: float = Form(4),
-    quantum_horizon_years: float = Form(15),
+    data_lifetime_years: float | None = Form(None),
+    migration_time_years: float | None = Form(None),
+    quantum_horizon_years: float | None = Form(15),
     principal: Principal = Depends(require_analyst),
 ) -> ScanSummary:
     filename = Path(file.filename or "bom.json").name
@@ -487,13 +499,15 @@ async def upload_container_image(
     environment: str = Form("Production"),
     owner: str = Form("Security Architecture"),
     team: str = Form("Platform Cryptography"),
-    data_lifetime_years: float = Form(12),
-    migration_time_years: float = Form(4),
-    quantum_horizon_years: float = Form(15),
-    data_sensitivity: str = Form("high"),
-    business_criticality: str = Form("high"),
-    public_exposure: bool = Form(True),
-    confidentiality_required: bool = Form(True),
+    data_lifetime_years: float | None = Form(None),
+    migration_time_years: float | None = Form(None),
+    quantum_horizon_years: float | None = Form(15),
+    data_sensitivity: str | None = Form(None),
+    business_criticality: str | None = Form(None),
+    public_exposure: bool | None = Form(None),
+    confidentiality_required: bool | None = Form(None),
+    context_profile: str | None = Form("evidence_first"),
+    assumption_basis: str | None = Form("operator"),
     principal: Principal = Depends(require_analyst),
 ) -> ScanSummary:
     filename = Path(file.filename or "image.tar").name
@@ -531,6 +545,8 @@ async def upload_container_image(
                 business_criticality,
                 public_exposure,
                 confidentiality_required,
+                context_profile,
+                assumption_basis,
             ),
         )
     finally:

@@ -65,11 +65,11 @@ export function RiskClient() {
   const sorted = useMemo(() => [...activeRisks].sort((a,b)=>(b.score ?? 0)-(a.score ?? 0)), [activeRisks]);
 
   return <AppShell><div className="page-wrap risk-page">
-    <PageHeader eyebrow="RISK / QUANTUM PLANNING SCENARIOS" title="Quantum Risk Scenarios" subtitle="Test different quantum planning horizons against the same verified assessment. ECDAT recalculates deterministic priority and long-term confidentiality exposure without rewriting discovery evidence or creating duplicate assessments." actions={summary ? <button className="primary-action" onClick={analyze} disabled={running}>{running ? <Activity className="spin" size={16}/> : <RefreshCw size={15}/>} Apply Scenario</button> : <button className="primary-action" onClick={loadReference}>Load Demonstration Assessment</button>} />
+    <PageHeader eyebrow="RISK / QUANTUM PLANNING SCENARIOS" title="QUANTUM VULNERABILITY PROFILES" actions={summary ? <button className="primary-action" onClick={analyze} disabled={running}>{running ? <Activity className="spin" size={16}/> : <RefreshCw size={15}/>} Apply Scenario</button> : <button className="primary-action" onClick={loadReference}>Load Demonstration Assessment</button>} />
     {error && <div className="error-strip">{error}</div>}
 
     <section className="scenario-strip panel-v2">
-      <div className="scenario-heading"><Atom size={18}/><div><strong>Quantum planning horizon (Z)</strong><span>Planning assumption selected by the operator — not a prediction of when cryptographically relevant quantum computing will arrive</span></div></div>
+      <div className="scenario-heading"><Atom size={18}/><div><strong>Quantum planning horizon (Z)</strong><span>Planning assumption selected by the operator</span></div></div>
       <div className="horizon-control"><span>08y</span><input type="range" min="8" max="30" value={horizon} onChange={(e)=>setHorizon(Number(e.target.value))}/><span>30y</span><output>{horizon} YEARS{scenarioPending ? " · PENDING" : ""}</output></div>
       <button className="scenario-play" onClick={analyze} disabled={!summary || running}><RefreshCw size={13}/> Recalculate</button>
       {scenarioPending && <div className="scenario-pending">The slider is a draft assumption. Apply it to recompute priority and long-term confidentiality exposure for this assessment.</div>}
@@ -79,12 +79,12 @@ export function RiskClient() {
       <div className="mosca-summary">
         <span className="kicker">MIGRATION TIMING TEST (MOSCA)</span>
         <h2>X + Y &gt; Z</h2>
-        <p>When required data protection time plus migration lead time extends beyond the selected planning horizon, the asset loses timing margin and can move upward in priority.</p>
+        <p>WHEN COMBINED DATA PROTECTION AND MIGRATION TIMELINES EXCEED THE PLANNING HORIZON, MARGIN EXPIRES AND ASSET PRIORITY INCREASES.</p>
       </div>
       <div className="mosca-variable-grid" aria-label="Mosca planning variables">
-        <article><b>X</b><div><strong>Data lifetime</strong><p>How long protected information must remain secure.</p></div></article>
-        <article><b>Y</b><div><strong>Migration lead time</strong><p>Estimated time required to replace or transition the cryptography.</p></div></article>
-        <article><b>Z</b><div><strong>Planning horizon</strong><p>The operator-defined horizon being tested in this scenario.</p></div></article>
+        <article><b>X</b><div><strong>Data lifetime</strong></div></article>
+        <article><b>Y</b><div><strong>Migration lead time</strong></div></article>
+        <article><b>Z</b><div><strong>Planning horizon</strong></div></article>
       </div>
       <div className="model-caveat"><ShieldCheck size={14}/><span>Deterministic planning rule — not a probability score or CRQC prediction. Long-term confidentiality exposure (HNDL) is evaluated separately where applicable.</span></div>
     </section>
@@ -117,15 +117,25 @@ export function RiskClient() {
     <section className="risk-lab-grid">
       <article className="panel-v2 risk-table-card"><div className="panel-topline"><div><span className="kicker">PRIORITY REGISTER</span><h2>Cryptographic risk and timing</h2></div><span className="count-chip">{sorted.length} ASSETS</span></div>
         <div className="risk-table"><div className="risk-table-head"><span>ASSET</span><span>POSTURE</span><span>TIMING</span><span>HNDL</span><span>SCORE</span></div>
-          {sorted.map((risk)=>{ const finding=findingByAsset.get(risk.asset_id); const owners=ownerLabelsByAsset.get(risk.asset_id) ?? []; const detail=finding ? riskAssetDetail(finding, owners) : "asset"; return <button key={risk.asset_id} className={selectedRisk?.asset_id===risk.asset_id?"risk-table-row selected":"risk-table-row"} onClick={()=>setSelectedRisk(risk)}><span><strong>{finding?.asset.canonical_name ?? "Unknown"}</strong><small>{detail}</small></span><span className={`posture ${risk.quantum_posture}`}>{risk.quantum_posture.replaceAll("_"," ")}</span><span className={risk.mosca_margin_years!=null&&risk.mosca_margin_years<0?"negative-margin":""}>{risk.mosca_margin_years==null?"—":`${risk.mosca_margin_years}y`}</span><span>{risk.hndl_exposure?<b className="hndl-flag">YES</b>:"—"}</span><span><b className={`score-orb ${risk.priority}`}>{risk.score ?? 0}</b></span></button>;})}
+          {sorted.map((risk)=>{ const finding=findingByAsset.get(risk.asset_id); const owners=ownerLabelsByAsset.get(risk.asset_id) ?? []; const detail=finding ? riskAssetDetail(finding, owners) : "asset"; return <button key={risk.asset_id} className={selectedRisk?.asset_id===risk.asset_id?"risk-table-row selected":"risk-table-row"} onClick={()=>setSelectedRisk(risk)}><span><strong>{finding ? riskDisplayName(finding) : "Unknown"}</strong><small>{detail}</small></span><span className={`posture ${risk.quantum_posture}`}>{risk.quantum_posture.replaceAll("_"," ")}</span><span className={risk.mosca_margin_years!=null&&risk.mosca_margin_years<0?"negative-margin":""}>{risk.mosca_margin_years==null?"—":`${risk.mosca_margin_years}y`}</span><span>{risk.hndl_exposure?<b className="hndl-flag">YES</b>:"—"}</span><span><b className={`score-orb ${risk.priority}`}>{risk.score ?? 0}</b></span></button>;})}
           {!summary && <div className="empty-copy">Start an assessment to populate quantum exposure analysis.</div>}
         </div>
       </article>
-      <aside className="panel-v2 risk-explainer"><div className="panel-topline"><div><span className="kicker">WHY THIS ASSET IS PRIORITIZED</span><h2>{selectedRisk ? findingByAsset.get(selectedRisk.asset_id)?.asset.canonical_name ?? "Asset" : "Select an asset"}</h2>{selectedRisk && findingByAsset.get(selectedRisk.asset_id) && <p className="risk-asset-context">{riskAssetDetail(findingByAsset.get(selectedRisk.asset_id)!, ownerLabelsByAsset.get(selectedRisk.asset_id) ?? [])}</p>}</div>{selectedRisk&&<span className={`risk-badge ${selectedRisk.priority}`}>{selectedRisk.score ?? 0} / 100</span>}</div>
+      <aside className="panel-v2 risk-explainer"><div className="panel-topline"><div><span className="kicker">WHY THIS ASSET IS PRIORITIZED</span><h2>{selectedRisk ? (findingByAsset.get(selectedRisk.asset_id) ? riskDisplayName(findingByAsset.get(selectedRisk.asset_id)!) : "Asset") : "Select an asset"}</h2>{selectedRisk && findingByAsset.get(selectedRisk.asset_id) && <><p className="risk-asset-context">{riskAssetDetail(findingByAsset.get(selectedRisk.asset_id)!, ownerLabelsByAsset.get(selectedRisk.asset_id) ?? [])}</p>{findingByAsset.get(selectedRisk.asset_id)!.asset.canonical_name !== riskDisplayName(findingByAsset.get(selectedRisk.asset_id)!) && <details className="risk-full-identity"><summary>Full cryptographic identity</summary><code>{findingByAsset.get(selectedRisk.asset_id)!.asset.canonical_name}</code></details>}</>}</div>{selectedRisk&&<span className={`risk-badge ${selectedRisk.priority}`}>{selectedRisk.score ?? 0} / 100</span>}</div>
         {selectedRisk ? <><MoscaTimeline risk={selectedRisk} finding={findingByAsset.get(selectedRisk.asset_id)} horizon={appliedHorizon}/><div className="factor-stack">{selectedRisk.factors.map((factor)=><article key={factor.code} className="factor-row"><b>+{factor.contribution}</b><div><strong>{factor.label}</strong><p>{factor.rationale}</p></div></article>)}</div><div className="assumption-note"><Atom size={14}/><p>{selectedRisk.rationale[selectedRisk.rationale.length-1]}</p></div><Link className="ghost-action investigation-link" href={`/investigate?asset=${selectedRisk.asset_id}`}>Open Full Investigation</Link></> : <div className="empty-copy">Select a risk row to inspect its deterministic factors.</div>}
       </aside>
     </section>
   </div></AppShell>;
+}
+
+function riskDisplayName(finding: Finding) {
+  const raw = finding.asset.canonical_name;
+  if (finding.asset.asset_type === "certificate") {
+    const cn = raw.match(/(?:^|,)CN=([^,]+)/i)?.[1]?.trim();
+    const org = raw.match(/(?:^|,)O=([^,]+)/i)?.[1]?.trim();
+    if (cn) return org && org !== cn ? `${cn} · ${org}` : cn;
+  }
+  return raw.length > 120 ? `${raw.slice(0, 117)}…` : raw;
 }
 
 function riskAssetDetail(finding: Finding, owners: string[]) {

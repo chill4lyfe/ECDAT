@@ -77,7 +77,7 @@ export function ContextGuideClient() {
     });
     setServices(seeded);
     setRelationships([]);
-    setMessage(`Seeded ${seeded.length} source context${seeded.length === 1 ? "" : "s"}. Review every business field before using the file; ECDAT has not inferred criticality, exposure or dependencies.`);
+    setMessage(`Seeded ${seeded.length} source context${seeded.length === 1 ? "" : "s"}. Review every business field before using the file; QDeX has not inferred criticality, exposure or dependencies.`);
   }
 
   function download() {
@@ -88,14 +88,14 @@ export function ContextGuideClient() {
     anchor.download = "ecdat.context.json";
     anchor.click();
     URL.revokeObjectURL(url);
-    setMessage("Context file generated. In New Assessment, add it as “ECDAT enterprise context” alongside your evidence sources, or place it at the root of a mounted/single-repository workspace before scanning.");
+    setMessage("Context file generated. In New Assessment, add it as “QDeX enterprise context” alongside your evidence sources, or place it at the root of a mounted/single-repository workspace before scanning.");
   }
 
   return <AppShell><div className="page-wrap context-guide-page">
-    <PageHeader eyebrow="ASSESSMENT / ENTERPRISE CONTEXT" title="Enterprise Context Guide" subtitle="ECDAT can discover cryptography without this file. Enterprise context makes the next layer stronger: business-sensitive priority, long-term confidentiality analysis, service impact, readiness and dependency-safe migration sequencing." />
+    <PageHeader eyebrow="ASSESSMENT / ENTERPRISE CONTEXT" title="ENTERPRISE CONTEXT GUIDE" />
 
     <section className="context-guide-hero panel-v2">
-      <div className="context-guide-hero-copy"><span className="kicker">WHY PROVIDE CONTEXT?</span><h2>Discovery tells ECDAT what exists. Context tells it what that cryptography means to your organization.</h2><p>The file does not declare cryptographic findings and it does not replace scanning. It supplies business/system facts that source code usually cannot prove: service ownership, protected data lifetime, criticality, exposure and explicit service relationships.</p><div className="context-guide-trust"><ShieldCheck size={17}/><span>Keep unknown fields unknown. Do not invent topology just to obtain a richer roadmap.</span></div></div>
+      <div className="context-guide-hero-copy"><span className="kicker">WHY PROVIDE CONTEXT?</span><h2>Discovery spots the cryptography. Context helps plan the future.</h2><p>THIS FILE DOES NOT DECLARE CRYPTOGRAPHIC FINDINGS. IT PROVIDES CRITICAL CONTEXT THAT CODE MISSES: SERVICE OWNERSHIP, DATA LIFETIME, EXPOSURE, AND DEPENDENCIES.</p></div>
       <ContextFlowGraphic />
     </section>
 
@@ -105,11 +105,11 @@ export function ContextGuideClient() {
     </section>
 
     <section className="context-guide-workflow panel-v2">
-      <div className="panel-topline"><div><span className="kicker">RECOMMENDED REAL-WORLD WORKFLOW</span><h2>Start with evidence. Add context only after ECDAT shows you the boundaries it observed.</h2><p className="panel-description">This two-pass approach avoids asking teams to invent an ECDAT-specific model before they have seen what the platform discovered.</p></div></div>
+      <div className="panel-topline"><div><span className="kicker">RECOMMENDED REAL-WORLD WORKFLOW</span><h2>Start with evidence. Integrate context only after QDeX establishes the observed boundaries.</h2></div></div>
       <div className="context-workflow-track">
         <article><b>01</b><ScanSearch size={18}/><strong>Run an evidence-only assessment</strong><span>Upload the selected repositories, images, BOMs and operational exports. No context file is required.</span></article>
         <ArrowRight className="context-workflow-arrow" size={18}/>
-        <article><b>02</b><Boxes size={18}/><strong>Seed observed source boundaries</strong><span>Use “Seed from latest assessment” so repository/container paths come from ECDAT rather than manual transcription.</span></article>
+        <article><b>02</b><Boxes size={18}/><strong>Seed observed source boundaries</strong><span>Use “Seed from latest assessment” so repository/container paths come from QDeX rather than manual transcription.</span></article>
         <ArrowRight className="context-workflow-arrow" size={18}/>
         <article><b>03</b><Building2 size={18}/><strong>Confirm business facts</strong><span>Service owners, data governance and architecture teams add only criticality, data lifetime, exposure and relationships they can defend.</span></article>
         <ArrowRight className="context-workflow-arrow" size={18}/>
@@ -118,7 +118,7 @@ export function ContextGuideClient() {
     </section>
 
     <section className="context-guide-steps panel-v2">
-      <div className="panel-topline"><div><span className="kicker">WHO KNOWS THESE FACTS?</span><h2>Build it from existing enterprise knowledge</h2><p className="panel-description">No single team needs to know everything. The context file can be assembled from information the organization already maintains.</p></div></div>
+      <div className="panel-topline"><div><h2>Build it from existing enterprise knowledge</h2></div></div>
       <div className="context-source-grid">
         <article><Building2 size={18}/><strong>Service owners</strong><span>Service names, source-path ownership and rough migration lead time.</span></article>
         <article><Database size={18}/><strong>Data governance</strong><span>Data classes, sensitivity and required confidentiality lifetime.</span></article>
@@ -129,7 +129,7 @@ export function ContextGuideClient() {
 
     <section className="context-builder-grid">
       <article className="panel-v2 context-builder">
-        <div className="panel-topline"><div><span className="kicker">GUIDED CONTEXT BUILDER</span><h2>Create ecdat.context.json</h2><p className="panel-description">Use only facts your organization can defend. You can start from the latest assessment's supplied source boundaries, then enrich them with business context.</p></div><FileJson2 size={21}/></div>
+        <div className="panel-topline"><div><span className="kicker">GUIDED CONTEXT BUILDER</span><h2>WE CAN HELP SET THE BASELINE</h2><p className="panel-description">Start from the latest assessment's supplied source boundaries, then enrich them with business context.</p></div><FileJson2 size={21}/></div>
         <div className="context-builder-actions"><button className="ghost-action" type="button" onClick={seedFromAssessment} disabled={!scan}><Boxes size={15}/>Seed from latest assessment</button><button className="primary-action" type="button" onClick={download} disabled={!manifest.services.length}><Download size={15}/>Download context file</button></div>
         {message && <div className="context-builder-message"><Info size={16}/><span>{message}</span></div>}
 
@@ -170,14 +170,14 @@ export function ContextGuideClient() {
       </article>
 
       <aside className="panel-v2 context-preview">
-        <div className="panel-topline"><div><span className="kicker">LIVE MANIFEST</span><h2>What ECDAT will receive</h2></div><BookOpenCheck size={20}/></div>
+        <div className="panel-topline"><div><span className="kicker">LIVE MANIFEST</span><h2>What QDeX will receive</h2></div><BookOpenCheck size={20}/></div>
         <div className="context-preview-status"><CheckCircle2 size={16}/><span><strong>{manifest.services.length}</strong> services · <strong>{manifest.data_classes.length}</strong> data classes · <strong>{manifest.relationships.length}</strong> relationships</span></div>
         <pre>{json}</pre>
-        <div className="context-preview-note"><Info size={15}/><p>In <strong>New Assessment</strong>, add this file as “ECDAT enterprise context” alongside your supplied evidence sources. Mounted/single-repository workspaces may instead place it at the workspace root as <strong>ecdat.context.json</strong>. ECDAT still derives cryptographic findings from scanners; the manifest enriches ownership and planning context only.</p></div>
+        <div className="context-preview-note"><Info size={15}/><p>In <strong>New Assessment</strong>, attach this file as "QDeX Enterprise Context" (or save as <code>ecdat.context.json</code> in the workspace root). Scanners detect cryptographic findings; this manifest provides ownership and planning context.</p></div>
       </aside>
     </section>
 
-    <section className="context-guide-finish panel-v2"><GitBranch size={24}/><div><span className="kicker">WHAT CHANGES AFTER YOU ADD IT?</span><h2>Same evidence. Better organizational interpretation.</h2><p>Re-run the assessment with the manifest present. ECDAT can then map cryptographic evidence to service ownership, use declared data lifetime and business context in risk, calculate readiness with enterprise factors, and produce dependency-aware migration waves where explicit dependencies exist.</p></div><ArrowRight size={22}/></section>
+    <section className="context-guide-finish panel-v2"><GitBranch size={24}/><div><span className="kicker">WHAT CHANGES AFTER YOU ADD IT?</span><h2>Same evidence. Better organizational interpretation.</h2><p>Re-run the assessment with the manifest present. QDeX can then map cryptographic evidence to service ownership, use declared data lifetime and business context in risk, calculate readiness with enterprise factors, and produce dependency-aware migration waves where explicit dependencies exist.</p></div><ArrowRight size={22}/></section>
   </div></AppShell>;
 }
 

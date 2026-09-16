@@ -11,7 +11,7 @@ from ecdat.evidence.fingerprint import evidence_fingerprint
 from ecdat.scanners.base import ScannerCapabilities
 from ecdat.scanners.fs import iter_files, relative_path, resolve_target_root
 
-_CONFIG_SUFFIXES = frozenset({".conf", ".cfg", ".ini", ".yaml", ".yml", ".toml", ".properties", ".env"})
+_CONFIG_SUFFIXES = frozenset({".conf", ".cnf", ".cfg", ".ini", ".yaml", ".yml", ".toml", ".properties", ".env"})
 _CONFIG_NAMES = frozenset({"nginx.conf", "httpd.conf", "sshd_config", "haproxy.cfg", "traefik.yml", "traefik.yaml"})
 
 
@@ -29,6 +29,11 @@ class ConfigSignal:
 _SIGNALS = (
     ConfigSignal(re.compile(r"\bssl_protocols\s+([^;]+)", re.I), "TLS", AssetType.PROTOCOL, "TLS", "nginx-tls-protocols", 0.98, "tls"),
     ConfigSignal(re.compile(r"\bMinProtocol\s*=\s*([^\s#]+)", re.I), "TLS", AssetType.PROTOCOL, "TLS", "openssl-min-protocol", 0.97, "tls"),
+    ConfigSignal(re.compile(r"\bMaxProtocol\s*=\s*([^\s#]+)", re.I), "TLS", AssetType.PROTOCOL, "TLS", "openssl-max-protocol", 0.97, "tls"),
+    ConfigSignal(re.compile(r"\bCipherString\s*=\s*([^#]+)", re.I), "TLS cipher suite policy", AssetType.CRYPTO_USAGE, "TLS", "openssl-cipher-string", 0.95, "cipher-policy"),
+    ConfigSignal(re.compile(r"\bCiphersuites\s*=\s*([^#]+)", re.I), "TLS 1.3 cipher suite policy", AssetType.CRYPTO_USAGE, "TLS", "openssl-tls13-ciphersuites", 0.96, "cipher-policy"),
+    ConfigSignal(re.compile(r"\b(?:Groups|Curves)\s*=\s*([^#]+)", re.I), "TLS key exchange group policy", AssetType.CRYPTO_USAGE, "TLS", "openssl-group-policy", 0.95, "key-establishment"),
+    ConfigSignal(re.compile(r"\bSignatureAlgorithms\s*=\s*([^#]+)", re.I), "TLS signature algorithm policy", AssetType.CRYPTO_USAGE, "TLS", "openssl-signature-policy", 0.95, "signature"),
     ConfigSignal(re.compile(r"\bSSLProtocol\s+(.+)$", re.I), "TLS", AssetType.PROTOCOL, "TLS", "apache-ssl-protocol", 0.97, "tls"),
     ConfigSignal(re.compile(r"\bssl_ciphers\s+([^;]+)", re.I), "TLS cipher suite policy", AssetType.CRYPTO_USAGE, "TLS", "nginx-cipher-policy", 0.94, "cipher-policy"),
     ConfigSignal(re.compile(r"\bSSLCipherSuite\s+(.+)$", re.I), "TLS cipher suite policy", AssetType.CRYPTO_USAGE, "TLS", "apache-cipher-policy", 0.94, "cipher-policy"),
@@ -55,7 +60,7 @@ def _jwt_family(algorithm: str) -> str:
 
 class ProtocolConfigScanner:
     scanner_id = "protocols.config"
-    version = "0.1.0"
+    version = "0.2.0"
     capabilities = ScannerCapabilities(
         target_kinds=frozenset({TargetKind.DIRECTORY, TargetKind.REPOSITORY}),
         deterministic=True,
@@ -64,11 +69,15 @@ class ProtocolConfigScanner:
     async def scan(self, request: ScanRequest) -> tuple[Finding, ...]:
         root = resolve_target_root(request.target.locator)
         findings: list[Finding] = []
+        files_scanned = 0
+        unreadable = 0
         for path in iter_files(root, suffixes=_CONFIG_SUFFIXES, names=_CONFIG_NAMES):
             try:
                 lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
             except OSError:
+                unreadable += 1
                 continue
+            files_scanned += 1
             for line_no, line in enumerate(lines, 1):
                 stripped = line.strip()
                 if not stripped or stripped.startswith(("#", ";")):
@@ -79,6 +88,11 @@ class ProtocolConfigScanner:
                         continue
                     value = (match.group(1) if match.groups() else stripped).strip().strip('"\'')
                     findings.append(self._finding(request, root, path, line_no, signal, value))
+        self.last_metrics = {
+            "files_scanned": files_scanned,
+            "unreadable_files": unreadable,
+            "raw_findings": len(findings),
+        }
         return tuple(findings)
 
     def _finding(

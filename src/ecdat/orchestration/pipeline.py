@@ -53,6 +53,7 @@ class ScanPipeline:
                         status="completed",
                         finding_count=len(scanner_findings),
                         duration_ms=(perf_counter() - started) * 1000,
+                        metrics=dict(getattr(scanner, "last_metrics", {}) or {}),
                     )
                 )
             except Exception as exc:  # scanner isolation is deliberate
@@ -63,6 +64,7 @@ class ScanPipeline:
                         finding_count=0,
                         duration_ms=(perf_counter() - started) * 1000,
                         error=f"{type(exc).__name__}: {exc}",
+                        metrics=dict(getattr(scanner, "last_metrics", {}) or {}),
                     )
                 )
 

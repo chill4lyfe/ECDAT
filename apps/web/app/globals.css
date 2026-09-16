@@ -1,13 +1,13 @@
 :root {
-  --graphite-0: #080809;
-  --graphite-1: #0d0d0f;
+  --graphite-0: #030304;
+  --graphite-1: #070708;
   --graphite-2: #121215;
   --graphite-3: #18181c;
   --graphite-4: #24242a;
   --ink-0: #f4f0eb;
-  --ink-1: #cfc9c2;
-  --ink-2: #8e8882;
-  --ink-3: #5e5a57;
+  --ink-1: #d8d1c9;
+  --ink-2: #a7a19a;
+  --ink-3: #817a75;
   --saffron-red: #ff5b35;
   --saffron: #ff8a3d;
   --ember: #ff2f3f;
@@ -56,7 +56,7 @@ h1, h2, h3, .brand-mark, .metric-v2 strong, .risk-metric strong, .evidence-metri
 
 .app-shell { min-height: 100vh; position: relative; }
 .side-rail {
-  position: sticky; top: 0; height: 100vh; z-index: 30;
+  position: sticky; top: 0; height: 100vh; z-index: 250;
   border-right: 1px solid var(--line);
   background: rgba(8,8,9,.92); backdrop-filter: blur(20px);
   display: flex; flex-direction: column; align-items: center; padding: 20px 10px 16px;
@@ -379,7 +379,7 @@ h1, h2, h3, .brand-mark, .metric-v2 strong, .risk-metric strong, .evidence-metri
 .micro-slider span { grid-column: 1 / -1; }
 .micro-slider input { width: 100%; accent-color: var(--saffron-red); }
 .micro-slider output { text-align: right; color: #d78067; font: 400 10px var(--font-display); }
-.migration-metrics, .agility-metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 12px; }
+.migration-metrics, .agility-metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 12px; margin-top: 12px;}
 .agility-metrics { grid-template-columns: repeat(4, 1fr); }
 .plan-metric { min-height: 106px; padding: 14px 15px; }
 .plan-metric > span { display: flex; gap: 7px; align-items: center; color: #746d68; font-weight: 800; letter-spacing: .1em; }
@@ -1178,9 +1178,9 @@ body { font-size: 14px; }
   gap: 14px;
 }
 .landing-brand-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 18px;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
   border: 1px solid rgba(255,91,53,.18);
   background: rgba(12,12,14,.88);
   display: grid;
@@ -2969,7 +2969,7 @@ button, a, input, select { outline-offset: 3px; }
   .sidebar-pinned .side-rail:not(:hover) .rail-account-main { width:auto; grid-template-columns:42px minmax(0,1fr); }
 }
 .workspace-create { margin:0 20px 20px; padding-top:12px; border-top:1px solid var(--line); }
-.workspace-create summary { color:#8d8781; font-size:10.5px; font-weight:700; cursor:pointer; }
+.workspace-create summary { color:#8d8781; font-size:12px; font-weight:700; cursor:pointer; }
 .workspace-create form { margin-top:12px; display:grid; gap:9px; }
 .workspace-create label > span { display:block; margin-bottom:5px; color:#827c76; font-size:10.5px; }
 .workspace-create input { width:100%; height:37px; border:1px solid var(--line); border-radius:7px; padding:0 9px; background:#0d0f12; color:#aaa39c; font-size:11px; }
@@ -4333,4 +4333,350 @@ body::before {
   .graph-preview > .graph-legend {
     margin: 0 14px 12px;
   }
+}
+
+/* ===== Phase 9: evidence-first risk context ===== */
+.phase9-context-panel { min-height: 700px; }
+.phase9-context-profiles { margin: 16px 20px 0; display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+.phase9-context-profiles button { min-height: 88px; padding: 12px; border: 1px solid rgba(255,255,255,.075); border-radius: 9px; background: #080a0d; color: #8d969e; text-align: left; cursor: pointer; }
+.phase9-context-profiles button:hover { border-color: rgba(111,167,223,.25); background: #0b0f14; }
+.phase9-context-profiles button.active { border-color: rgba(111,167,223,.4); background: rgba(95,149,204,.075); box-shadow: inset 3px 0 0 #6fa7df; }
+.phase9-context-profiles strong { display: block; color: #dce2e7; font-size: 12.5px; }
+.phase9-context-profiles small { display: block; margin-top: 5px; color: #7e8992; font-size: 10.75px; line-height: 1.45; }
+.phase9-context-status { margin: 10px 20px 0; padding: 11px 12px; border: 1px solid rgba(255,255,255,.065); border-radius: 8px; background: rgba(255,255,255,.018); }
+.phase9-context-status span { color: #8eb9df; font-size: 9.5px; font-weight: 800; letter-spacing: .09em; }
+.phase9-context-status p { margin: 4px 0 0; color: #858f97; font-size: 11.5px; line-height: 1.5; }
+.phase9-context-status code { color: #b6c4d0; font: 10.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.phase9-context-fields { margin-top: 13px; }
+.phase9-context-fields input::placeholder { color: #5f6870; opacity: 1; }
+@media (max-width: 760px) { .phase9-context-profiles { grid-template-columns: 1fr; } }
+
+/* ===== Phase 9.1: scalable graph + information-density polish ===== */
+
+/* Inventory keeps analysis beside the graph, but gives the inspector enough room for
+   certificate subjects, rationale and relationship labels. */
+.graph-workbench { grid-template-columns: minmax(0, 1fr) minmax(390px, 430px); align-items: start; }
+.graph-canvas { min-width: 0; }
+.graph-canvas > .force-graph { height: clamp(700px, 72vh, 820px); min-height: 700px; }
+.graph-inspector { min-width: 0; min-height: 700px; max-height: 820px; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: #2f3a44 transparent; }
+.graph-inspector .panel-topline { position: sticky; top: 0; z-index: 8; padding-bottom: 13px; background: linear-gradient(180deg, rgba(17,19,22,.98), rgba(17,19,22,.94) 82%, rgba(17,19,22,0)); backdrop-filter: blur(10px); }
+.graph-inspector .panel-topline > div,
+.graph-inspector .node-identity > div,
+.graph-inspector .relationship-list button > div { min-width: 0; }
+.graph-inspector h2,
+.graph-inspector .node-identity strong,
+.graph-inspector .relationship-list button span,
+.graph-inspector .graph-reason,
+.graph-inspector .risk-core-card p { overflow-wrap: anywhere; word-break: break-word; }
+.graph-inspector h2 { max-width: 100%; font-size: 17px; line-height: 1.35; }
+.node-identity { align-items: flex-start; }
+.node-identity strong { font-size: 12.5px; line-height: 1.45; }
+.relationship-list button span { font-size: 11.5px; line-height: 1.45; }
+.risk-core-card p, .graph-reason { font-size: 11.5px; line-height: 1.55; }
+.graph-full-identity { margin: -8px 20px 16px; border: 1px solid rgba(255,255,255,.07); border-radius: 8px; background: rgba(255,255,255,.018); }
+.graph-full-identity summary { padding: 9px 11px; color: #8f99a2; font-size: 10.5px; font-weight: 750; letter-spacing: .05em; cursor: pointer; }
+.graph-full-identity code { display: block; max-height: 170px; overflow: auto; padding: 0 11px 11px; color: #aeb8c1; font: 10.5px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Dense estates keep the complete node/edge set and the same D3 force simulation, but
+   render a much cheaper visual language: straight quiet links + score-coloured dots. */
+.force-graph.dense .force-link { stroke: rgba(126,143,157,.34); stroke-width: .65; stroke-dasharray: none; animation: none; marker-end: none; vector-effect: non-scaling-stroke; }
+.force-graph.dense .force-link.edge-depends_on,
+.force-graph.dense .force-link.edge-connects_to,
+.force-graph.dense .force-link.edge-authenticates_with { stroke: rgba(125,166,205,.42); stroke-width: .8; }
+.force-graph.dense .force-node .node-disc { fill: #66727c; stroke: #8996a0; stroke-width: 1; vector-effect: non-scaling-stroke; filter: none; }
+.force-graph.dense .force-node.type-service .node-disc,
+.force-graph.dense .force-node.type-application .node-disc { fill: #132234; stroke: #72a9dd; stroke-width: 1.5; }
+.force-graph.dense .force-node:not(.type-service):not(.type-application).risk-critical .node-disc { fill: #ee4e5b; stroke: #ff8992; }
+.force-graph.dense .force-node:not(.type-service):not(.type-application).risk-elevated .node-disc { fill: #ef8a57; stroke: #ffb08a; }
+.force-graph.dense .force-node:not(.type-service):not(.type-application).risk-moderate .node-disc { fill: #d8aa53; stroke: #f0c97d; }
+.force-graph.dense .force-node:not(.type-service):not(.type-application).risk-low .node-disc { fill: #68b78e; stroke: #91d5b0; }
+.force-graph.dense .force-node.selected .node-disc { stroke: #f2f5f7; stroke-width: 2.25; filter: drop-shadow(0 0 6px rgba(121,174,232,.45)); }
+.force-graph.dense .force-label { fill: #b9c7d2; font-size: 10.5px; font-weight: 700; }
+.force-graph.dense .blocker-ring { stroke-width: 1.8; }
+.legend-score { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.legend-score-critical { background: #ee4e5b; }
+.legend-score-elevated { background: #ef8a57; }
+.legend-score-moderate { background: #d8aa53; }
+.legend-score-low { background: #68b78e; }
+
+.graph-canvas > .canvas-hud { padding-right: 118px; }
+.graph-expand-button { position: absolute; right: 15px; bottom: 14px; z-index: 7; min-height: 31px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid rgba(121,174,232,.22); border-radius: 7px; background: rgba(9,13,18,.9); color: #a9c3db; font-size: 10px; font-weight: 800; letter-spacing: .06em; cursor: pointer; backdrop-filter: blur(10px); }
+.graph-expand-button:hover { border-color: rgba(121,174,232,.42); background: #101923; color: #d5e5f3; }
+.graph-expansion-placeholder { min-height: 700px; display: grid; place-content: center; justify-items: center; gap: 9px; color: #74818c; font-size: 12px; }
+.graph-expanded-backdrop { position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 4vh 4vw; background: rgba(0,0,0,.82); backdrop-filter: blur(8px); }
+.graph-expanded-panel { width: min(88vw, 1680px); height: min(88vh, 980px); display: grid; grid-template-rows: auto minmax(0,1fr) auto; overflow: hidden; border-color: rgba(121,174,232,.22); box-shadow: 0 38px 120px rgba(0,0,0,.62); }
+.graph-expanded-toolbar { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 11px 14px 10px 18px; border-bottom: 1px solid rgba(255,255,255,.07); background: #0b0f13; }
+.graph-expanded-toolbar > div:first-child strong { display: block; margin-top: 4px; color: #aeb9c2; font-size: 12px; }
+.graph-expanded-toolbar > div:last-child { display: flex; gap: 8px; }
+.graph-expanded-stage { min-height: 0; background: radial-gradient(circle at 50% 45%, rgba(76,116,151,.055), transparent 48%), #080a0d; }
+.force-graph.expanded { width: 100%; height: 100%; min-height: 0; }
+.graph-expanded-footer { min-height: 38px; display: flex; justify-content: space-between; gap: 18px; align-items: center; padding: 8px 18px; border-top: 1px solid rgba(255,255,255,.06); color: #77838d; font-size: 10.5px; background: #090c10; }
+.graph-close-button { color: #c8d0d6; }
+
+/* New Assessment / Risk Context: readable, grouped and clear about what changes risk. */
+.phase9-context-panel { min-height: 0; padding-bottom: 20px; }
+.phase9-context-panel .panel-topline h2 { font-size: 20px; line-height: 1.3; }
+.phase9-context-panel .phase81-context-note { margin: 9px 20px 0; color: #a4adb5; font-size: 13px; line-height: 1.6; }
+.phase9-context-profiles { gap: 10px; margin-top: 18px; }
+.phase9-context-profiles button { min-height: 104px; padding: 15px 14px; }
+.phase9-context-profiles strong { font-size: 14px; }
+.phase9-context-profiles small { margin-top: 7px; color: #929da6; font-size: 12px; line-height: 1.5; }
+.phase9-context-status { margin-top: 12px; padding: 13px 14px; }
+.phase9-context-status span { font-size: 10.5px; }
+.phase9-context-status p { margin-top: 6px; color: #98a2aa; font-size: 12.25px; line-height: 1.55; }
+.phase91-context-guide { margin: 14px 20px 0; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 9px; }
+.phase91-context-guide article { min-height: 92px; padding: 13px 14px; border: 1px solid rgba(255,255,255,.07); border-radius: 9px; background: #090c10; }
+.phase91-context-guide strong { display: block; color: #d3dbe1; font-size: 12.5px; }
+.phase91-context-guide span { display: block; margin-top: 6px; color: #8f9aa3; font-size: 11.5px; line-height: 1.5; }
+.phase91-context-group { margin: 15px 20px 0; border: 1px solid rgba(255,255,255,.07); border-radius: 11px; background: rgba(7,9,12,.58); overflow: hidden; }
+.phase91-context-group-head { padding: 13px 15px 11px; border-bottom: 1px solid rgba(255,255,255,.055); background: rgba(255,255,255,.015); }
+.phase91-context-group-head span { color: #d5dde3; font-size: 12px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+.phase91-context-group-head p { margin: 5px 0 0; color: #8e99a2; font-size: 11.75px; line-height: 1.5; }
+.phase91-context-grid { margin: 0; padding: 14px 15px 15px; gap: 14px; }
+.phase91-context-grid label > span { color: #9ba5ad; font-size: 11px; }
+.phase91-context-grid label > small { color: #77838c; font-size: 10.75px; line-height: 1.45; }
+.phase91-context-grid input,
+.phase91-context-grid select { min-height: 43px; color: #d0d7dc; font-size: 12.5px; background: #080b0e; }
+.phase91-context-grid .number-field { min-height: 43px; }
+.phase91-context-grid .number-field b { font-size: 11px; }
+.phase9-context-panel .intake-run { min-height: 43px; margin-top: 16px; font-size: 11px; }
+
+/* Migration programme: explicit separation between the decision brief and policy,
+   plus a searchable/collapsible execution ledger for very large plans. */
+.migration-page .phase8-plan-brief { margin-bottom: 12px; }
+.migration-page .plan-explanation { margin-top: 0; }
+.wave-ledger-top p { margin: 7px 0 0; color: #8d979f; font-size: 12.5px; line-height: 1.5; }
+.wave-ledger-tools { margin: 15px 18px 4px; display: grid; grid-template-columns: minmax(320px, 620px) auto; align-items: center; gap: 14px; }
+.wave-ledger-tools > span { justify-self: end; color: #7e8992; font-size: 11.5px; }
+.wave-ledger-table { margin-top: 10px; }
+.wave-ledger-head { width: 100%; min-height: 58px; grid-template-columns: 58px minmax(220px,1fr) minmax(340px,auto) 24px; padding: 7px 8px 7px 4px; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.wave-ledger-head:hover { background: rgba(121,174,232,.035); }
+.wave-ledger-head > strong { color: #c0c8ce; font-size: 13.5px; }
+.wave-ledger-head > span { color: #8e989f; font-size: 11.75px; line-height: 1.45; }
+.wave-ledger-head > i { display: grid; place-items: center; color: #7d9ab4; font-style: normal; }
+.wave-ledger-actions { border-top: 1px solid rgba(255,255,255,.035); }
+.wave-ledger-actions > button { min-height: 54px; }
+.wave-ledger-actions > button strong { color: #b7c0c6; font-size: 12.75px; line-height: 1.4; overflow-wrap: anywhere; }
+.wave-ledger-actions > button > span:not(.action-dot) { color: #89949c; font-size: 11.5px; line-height: 1.4; overflow-wrap: anywhere; }
+.wave-ledger-empty { margin: 16px 0; padding: 22px; border: 1px dashed rgba(255,255,255,.08); border-radius: 9px; color: #87929a; font-size: 12px; text-align: center; }
+
+/* Quantum Risk: keep the five table columns aligned while allowing readable identities. */
+.risk-table-head,
+.risk-table-row { grid-template-columns: minmax(300px,1.55fr) minmax(115px,.72fr) minmax(72px,.38fr) minmax(62px,.28fr) minmax(58px,.3fr); column-gap: 13px; }
+.risk-table-row { min-height: 62px; padding-top: 9px; padding-bottom: 9px; }
+.risk-table-row > span { min-width: 0; }
+.risk-table-row > span:first-child strong { color: #bec6cc; font-size: 12.5px; line-height: 1.4; white-space: normal; overflow-wrap: anywhere; }
+.risk-table-row > span:first-child small { max-width: none; overflow: visible; text-overflow: clip; white-space: normal; color: #8d979f; font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
+.risk-explainer .panel-topline > div { min-width: 0; }
+.risk-explainer .panel-topline h2 { max-width: 100%; line-height: 1.35; overflow-wrap: anywhere; }
+.risk-asset-context { overflow-wrap: anywhere; }
+.risk-full-identity { margin-top: 9px; border: 1px solid rgba(255,255,255,.07); border-radius: 8px; background: #080b0e; }
+.risk-full-identity summary { padding: 8px 10px; color: #8798a8; font-size: 10.5px; cursor: pointer; }
+.risk-full-identity code { display: block; max-height: 160px; overflow: auto; padding: 0 10px 10px; color: #aebac4; font: 10.25px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.risk-explainer .factor-row p,
+.risk-explainer .assumption-note p { font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
+
+@media (max-width: 1320px) {
+  .graph-workbench { grid-template-columns: minmax(0,1fr) minmax(350px,390px); }
+  .wave-ledger-head { grid-template-columns: 52px minmax(190px,1fr) minmax(260px,auto) 22px; }
+}
+@media (max-width: 1000px) {
+  .graph-workbench { grid-template-columns: 1fr; }
+  .graph-inspector { max-height: none; min-height: auto; overflow: visible; }
+  .graph-inspector .panel-topline { position: static; background: transparent; }
+  .graph-expanded-panel { width: 94vw; height: 90vh; }
+  .phase91-context-guide { grid-template-columns: 1fr; }
+  .wave-ledger-tools { grid-template-columns: 1fr; }
+  .wave-ledger-tools > span { justify-self: start; }
+  .wave-ledger-head { grid-template-columns: 50px 1fr 24px; }
+  .wave-ledger-head > span { grid-column: 2; }
+  .wave-ledger-head > i { grid-column: 3; grid-row: 1 / span 2; }
+}
+@media (max-width: 760px) {
+  .graph-canvas > .force-graph { height: 600px; min-height: 600px; }
+  .graph-canvas > .canvas-hud { padding-right: 0; padding-bottom: 42px; }
+  .graph-expand-button { bottom: 14px; }
+  .graph-expanded-backdrop { padding: 2vh 2vw; }
+  .graph-expanded-panel { width: 96vw; height: 92vh; }
+  .graph-expanded-footer { display: none; }
+  .phase91-context-grid { grid-template-columns: 1fr; }
+  .risk-table-head,
+  .risk-table-row { grid-template-columns: minmax(220px,1.3fr) minmax(100px,.7fr) minmax(55px,.3fr); }
+  .risk-table-head > :nth-child(3), .risk-table-row > :nth-child(3), .risk-table-head > :nth-child(4), .risk-table-row > :nth-child(4) { display: none; }
+}
+.roadmap-flow-wrap.dense-plan { min-height: 0; overflow-x: auto; overflow-y: hidden; }
+.roadmap-density-note { margin: 12px 18px 0; display: flex; align-items: baseline; gap: 10px; padding: 10px 12px; border: 1px solid rgba(121,174,232,.13); border-radius: 8px; background: rgba(121,174,232,.035); }
+.roadmap-density-note strong { color: #9ebfe0; font-size: 10.5px; letter-spacing: .08em; }
+.roadmap-density-note span { color: #87939c; font-size: 11.5px; line-height: 1.45; }
+.roadmap-wave-count { fill: #677581; font: 700 8px var(--font-body); letter-spacing: .04em; }
+
+/* ===== Phase 9.2: readable programme maps + adaptive graph detail + scalable asset picker ===== */
+
+/* Migration map stays information-dense without shrinking its typography to fit the card.
+   Large plans scroll horizontally at a readable 1:1 SVG scale. */
+.roadmap-flow-wrap { overflow-x: auto; overflow-y: hidden; }
+.roadmap-wave-no { fill: #cf6d55; font: 500 12px var(--font-display); letter-spacing: .09em; }
+.roadmap-wave-title { fill: #9d9690; font: 750 10.5px var(--font-body); letter-spacing: .045em; text-transform: uppercase; }
+.roadmap-wave-count { fill: #77838d; font: 750 9.5px var(--font-body); letter-spacing: .04em; }
+.roadmap-node-score { font-size: 10px; }
+.roadmap-node-label { fill: #c5beb8; font-size: 11.5px; font-weight: 750; }
+.roadmap-node-target { fill: #8f8984; font-size: 10px; font-weight: 650; }
+.roadmap-node-context { fill: #737d86; font-size: 9.5px; font-weight: 600; }
+.roadmap-density-note { margin-bottom: 4px; }
+.roadmap-density-note strong { font-size: 11px; }
+.roadmap-density-note span { font-size: 12px; }
+
+/* Readiness map semantics: ring distance now has one meaning only.
+   Inner rings are easier to migrate; outer rings require more preparation. */
+.phase8-readiness-map { overflow: hidden; }
+.agility-constellation.phase8-constellation { height: 590px; min-height: 590px; }
+.agility-map-help { fill: #8e99a2; font: 650 11px var(--font-body); letter-spacing: .015em; }
+.agility-band-label { fill: #66737d; font: 750 8.75px var(--font-body); letter-spacing: .075em; }
+.agility-center-group { color: #d9664c; pointer-events: none; }
+.agility-center-label { fill: #9aa5ad; font: 800 8px var(--font-body); letter-spacing: .08em; }
+.agility-label-leader { stroke: rgba(148,164,176,.24); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.agility-node-label { fill: #aab3ba; font: 700 10px var(--font-body); pointer-events: none; paint-order: stroke; stroke: #0b0e11; stroke-width: 3px; stroke-linejoin: round; }
+.agility-node-score { fill: #e1e7ea; font-size: 9.5px; }
+.agility-node:hover .agility-node-label,
+.agility-node.selected .agility-node-label { fill: #eef3f6; }
+.agility-constellation.dense .agility-node-label,
+.agility-constellation.dense .agility-label-leader { opacity: 0; }
+.agility-constellation.dense .agility-node:hover .agility-node-label,
+.agility-constellation.dense .agility-node:hover .agility-label-leader,
+.agility-constellation.dense .agility-node.selected .agility-node-label,
+.agility-constellation.dense .agility-node.selected .agility-label-leader { opacity: 1; }
+
+/* Dense CryptoGraph keeps the small-estate visual language available as you zoom.
+   We do not add expensive glow/curved-edge effects back to hundreds of nodes. */
+.force-graph.dense .node-core { fill: rgba(239,245,249,.72); pointer-events: none; }
+.force-graph.dense .force-node.type-service .node-core,
+.force-graph.dense .force-node.type-application .node-core { fill: #79b5ed; }
+.force-graph.dense .dense-detail-label { opacity: 0; pointer-events: none; transition: opacity .12s ease; }
+.force-graph.dense.zoom-detail .dense-detail-label,
+.force-graph.dense .force-node:hover .dense-detail-label,
+.force-graph.dense .force-node.selected .dense-detail-label { opacity: 1; }
+.force-graph.dense.zoom-detail .force-label { font-size: 9.75px; paint-order: stroke; stroke: #080b0e; stroke-width: 3px; stroke-linejoin: round; }
+.force-graph.dense .force-node:hover .force-label,
+.force-graph.dense .force-node.selected .force-label { fill: #e7eef4; }
+
+/* Asset Investigation: searchable bounded result list instead of rendering hundreds
+   of native <option> elements on every interaction. */
+.investigation-picker { overflow: visible; position: relative; }
+.investigation-asset-picker { position: relative; min-width: 0; z-index: 20; }
+.investigation-asset-trigger { width: 100%; min-height: 46px; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 12px; padding: 8px 11px 8px 13px; border: 1px solid var(--line); border-radius: 8px; background: #0a0d10; color: #c9d0d5; text-align: left; cursor: pointer; }
+.investigation-asset-trigger:hover,
+.investigation-asset-picker.open .investigation-asset-trigger { border-color: rgba(121,174,232,.28); background: #0c1116; }
+.investigation-asset-trigger > span { min-width: 0; }
+.investigation-asset-trigger strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #d5dce1; font-size: 12.75px; line-height: 1.35; }
+.investigation-asset-trigger small { display: block; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #7f8a93; font-size: 10.75px; text-transform: capitalize; }
+.investigation-asset-trigger svg { color: #7993aa; transition: transform .15s ease; }
+.investigation-asset-picker.open .investigation-asset-trigger svg { transform: rotate(180deg); }
+.investigation-asset-menu { position: absolute; top: calc(100% + 7px); left: 0; right: 0; z-index: 80; overflow: hidden; border: 1px solid rgba(121,174,232,.22); border-radius: 10px; background: rgba(8,11,14,.985); box-shadow: 0 22px 60px rgba(0,0,0,.52); backdrop-filter: blur(12px); }
+.investigation-asset-search { min-height: 48px; display: grid; grid-template-columns: auto minmax(0,1fr); align-items: center; gap: 9px; padding: 8px 11px; border-bottom: 1px solid rgba(255,255,255,.065); color: #7896b2; }
+.investigation-asset-search input { width: 100%; min-width: 0; height: 32px; border: 0; outline: 0; background: transparent; color: #d5dde3; font-size: 12.5px; }
+.investigation-asset-search input::placeholder { color: #65717a; }
+.investigation-asset-results { max-height: 360px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #2f3b45 transparent; }
+.investigation-asset-results > button { width: 100%; min-height: 53px; display: grid; grid-template-columns: minmax(0,1fr) 18px; gap: 10px; align-items: center; padding: 9px 12px; border: 0; border-bottom: 1px solid rgba(255,255,255,.04); background: transparent; color: #aeb7bd; text-align: left; cursor: pointer; }
+.investigation-asset-results > button:hover,
+.investigation-asset-results > button.selected { background: rgba(121,174,232,.055); }
+.investigation-asset-results > button span { min-width: 0; }
+.investigation-asset-results > button strong { display: block; color: #c8d0d6; font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; }
+.investigation-asset-results > button small { display: block; margin-top: 3px; color: #77838c; font-size: 10.5px; text-transform: capitalize; }
+.investigation-asset-results > button svg { color: #7cb2e6; }
+.investigation-asset-empty { margin: 0; padding: 24px 14px; color: #78838b; font-size: 12px; text-align: center; }
+.investigation-asset-footer { min-height: 34px; display: flex; justify-content: space-between; gap: 14px; align-items: center; padding: 7px 11px; border-top: 1px solid rgba(255,255,255,.055); color: #68747d; font-size: 10px; }
+
+@media (max-width: 1000px) {
+  .agility-constellation.phase8-constellation { height: 540px; min-height: 540px; }
+}
+@media (max-width: 760px) {
+  .agility-map-help { font-size: 10px; }
+  .investigation-asset-menu { position: fixed; left: 4vw; right: 4vw; top: 18vh; max-height: 64vh; }
+  .investigation-asset-results { max-height: 48vh; }
+  .investigation-asset-footer { flex-direction: column; align-items: flex-start; gap: 2px; }
+}
+
+/* ===== Phase 9.3: focused graph labels, collision-safe readiness, scalable pickers ===== */
+
+/* Graph search locates/focuses nodes without throwing away the surrounding topology. */
+.graph-node-search { position: relative; min-width: 0; z-index: 35; }
+.graph-node-search > .search-box { width: 100%; }
+.graph-search-results { position: absolute; z-index: 90; top: calc(100% + 7px); left: 0; width: min(520px, 92vw); max-height: 340px; overflow-y: auto; border: 1px solid rgba(121,174,232,.2); border-radius: 9px; background: rgba(8,11,14,.985); box-shadow: 0 22px 58px rgba(0,0,0,.5); backdrop-filter: blur(12px); }
+.graph-search-results > button { width: 100%; min-height: 48px; display: grid; grid-template-columns: minmax(0,1fr) 18px; gap: 10px; align-items: center; padding: 8px 11px; border: 0; border-bottom: 1px solid rgba(255,255,255,.045); background: transparent; color: #aeb8c0; text-align: left; cursor: pointer; }
+.graph-search-results > button:hover { background: rgba(121,174,232,.055); }
+.graph-search-results > button > span { min-width: 0; }
+.graph-search-results strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #cbd4da; font-size: 11.75px; }
+.graph-search-results small { display: block; margin-top: 3px; color: #74818a; font-size: 9.75px; text-transform: uppercase; letter-spacing: .045em; }
+.graph-search-results > p { margin: 0; padding: 18px 12px; color: #75818a; font-size: 11px; text-align: center; }
+.graph-toolbar.panel-v2 {
+  overflow: visible;
+  z-index: 70;
+}
+
+.graph-workbench {
+  position: relative;
+  z-index: 1;
+}
+
+/* Large estates never reveal all names merely because the user zoomed. Labels are dormant
+   until selection/search and are repositioned by the graph code away from nearby nodes. */
+.force-graph.dense .dense-context-label { opacity: 0; pointer-events: none; transition: opacity .1s ease; fill: #d3dce3; font-size: 9.75px; font-weight: 750; paint-order: stroke; stroke: #080b0e; stroke-width: 3.5px; stroke-linejoin: round; }
+.force-graph.dense .force-node:hover .dense-context-label { fill: #eef4f7; }
+.force-graph.dense.zoom-detail .dense-context-label { opacity: 0; }
+
+/* Expanded view gets the same real search control, not a separate reduced dataset. */
+.graph-expanded-toolbar { display: grid; grid-template-columns: minmax(170px,.55fr) minmax(300px,1fr) auto; align-items: center; }
+.graph-expanded-title strong { display: block; margin-top: 4px; color: #aeb9c2; font-size: 12px; }
+.graph-expanded-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.graph-expanded-toolbar .graph-node-search { width: min(620px, 100%); justify-self: center; }
+.graph-expanded-toolbar .graph-search-results { left: 50%; transform: translateX(-50%); width: min(620px, 70vw); }
+
+/* Readiness map: ring meanings live in a fixed legend; node labels use collision-aware
+   callouts so labels no longer sit on top of bubbles or ring headings. */
+.agility-constellation.phase8-constellation { height: 640px; min-height: 640px; }
+.agility-band-key circle { fill: #596b79; stroke: #8aa0b2; stroke-width: .7; }
+.agility-band-key text { fill: #6f7d87; font: 750 8.4px var(--font-body); letter-spacing: .055em; }
+.agility-ring { stroke: rgba(121,145,164,.105); }
+.agility-label-leader { stroke: rgba(148,164,176,.3); stroke-width: .85; vector-effect: non-scaling-stroke; }
+.agility-node-label { fill: #b0bac1; font: 720 9.75px var(--font-body); pointer-events: none; paint-order: stroke; stroke: #0a0d10; stroke-width: 3.5px; stroke-linejoin: round; }
+.agility-constellation.dense .agility-node-label,
+.agility-constellation.dense .agility-label-leader { opacity: 0; }
+.agility-constellation.dense .agility-node:hover .agility-node-label,
+.agility-constellation.dense .agility-node:hover .agility-label-leader,
+.agility-constellation.dense .agility-node.selected .agility-node-label,
+.agility-constellation.dense .agility-node.selected .agility-label-leader { opacity: 1; }
+
+/* Asset picker keeps the existing dropdown height while exposing the 100 highest-priority
+   assets and rendering every identifier as one clean line with an ellipsis. */
+.investigation-asset-results > button { min-height: 50px; }
+.investigation-asset-results > button strong,
+.investigation-asset-results > button small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.investigation-asset-results > button strong { overflow-wrap: normal; }
+
+/* Migration recommendation confidence: show both the score and the deterministic reasons
+   that produced it so confidence is not a decorative percentage. */
+.recommendation-confidence { margin-top: 17px; padding: 13px 14px 14px; border: 1px solid rgba(121,174,232,.12); border-radius: 9px; background: rgba(121,174,232,.025); }
+.recommendation-confidence-head { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 7px; }
+.recommendation-confidence-head svg { color: #83a9ca; }
+.recommendation-confidence-head span { color: #8e9ba5; font-size: 10.25px; font-weight: 800; letter-spacing: .075em; }
+.recommendation-confidence-head strong { color: #d0d9df; font-size: 11.5px; letter-spacing: .035em; }
+.recommendation-confidence-bar { height: 5px; margin-top: 10px; overflow: hidden; border-radius: 999px; background: #171d22; }
+.recommendation-confidence-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg,#557f9f,#8cb9da); }
+.recommendation-confidence > p { margin: 9px 0 0; color: #7e8a93; font-size: 10.75px; line-height: 1.5; }
+.recommendation-confidence-reasons { margin-top: 11px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.055); }
+.recommendation-confidence-reasons > div { display: grid; grid-template-columns: 15px minmax(0,1fr); gap: 7px; align-items: start; margin-top: 7px; color: #9ca7af; font-size: 10.75px; line-height: 1.5; }
+.recommendation-confidence-reasons > div svg { margin-top: 2px; color: #6fa88c; }
+.recommendation-confidence.confidence-medium .recommendation-confidence-bar i { background: linear-gradient(90deg,#8b7043,#c89b54); }
+.recommendation-confidence.confidence-low .recommendation-confidence-bar i { background: linear-gradient(90deg,#844b45,#c66a5e); }
+
+@media (max-width: 1000px) {
+  .graph-expanded-toolbar { grid-template-columns: 1fr auto; }
+  .graph-expanded-toolbar .graph-node-search { grid-column: 1 / -1; grid-row: 2; width: 100%; }
+  .graph-expanded-actions { grid-column: 2; grid-row: 1; }
+  .agility-constellation.phase8-constellation { height: 600px; min-height: 600px; }
+}
+@media (max-width: 760px) {
+  .graph-search-results { position: fixed; top: 18vh; left: 4vw; width: 92vw; max-height: 58vh; }
+  .graph-expanded-toolbar .graph-search-results { left: 4vw; transform: none; width: 92vw; }
+  .agility-band-key { display: none; }
 }

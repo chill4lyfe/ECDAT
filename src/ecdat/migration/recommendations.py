@@ -226,7 +226,19 @@ class MigrationRecommendationEngine:
             prerequisites.append("Trace configuration/runtime usage to a concrete cryptographic primitive.")
             effort = _effort(2, constraints)
 
-        confidence_score = min(0.98, max(0.55, finding.confidence.score * (0.96 if purpose != "general" else 0.82)))
+        specificity_factor = 0.96 if purpose != "general" else 0.82
+        confidence_score = min(0.98, max(0.55, finding.confidence.score * specificity_factor))
+        confidence_reasons = [
+            f"Evidence confidence is {finding.confidence.score * 100:.0f}% across {len(finding.evidence)} retained evidence record(s).",
+            (
+                f"Usage was resolved as {purpose}; recommendation confidence applies the {specificity_factor:.2f} specificity factor."
+                if purpose != "general"
+                else f"Usage remains general/contextual; recommendation confidence is deliberately discounted with the {specificity_factor:.2f} specificity factor."
+            ),
+            f"Final confidence is clamped to the 55–98% recommendation range after evidence confidence × specificity ({confidence_score * 100:.0f}%).",
+        ]
+        if finding.confidence.reasons:
+            confidence_reasons.append(f"Primary discovery basis: {finding.confidence.reasons[0]}")
         priority_score = risk.score or 0
         if strategy == "classical_remediation":
             priority_score = max(priority_score, 82)
@@ -244,6 +256,6 @@ class MigrationRecommendationEngine:
             interoperability_notes=tuple(interoperability),
             performance_notes=tuple(performance),
             effort_points=effort,
-            confidence=confidence_from_score(confidence_score, "Recommendation derived from deterministic evidence and contextual risk."),
+            confidence=confidence_from_score(confidence_score, *confidence_reasons),
             standards_basis=tuple(dict.fromkeys(standards)),
         )

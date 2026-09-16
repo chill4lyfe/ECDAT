@@ -149,7 +149,7 @@ export function AccessClient() {
   const capabilities = useMemo(() => roleCapabilities[activeRole], [activeRole]);
 
   return <AppShell><div className="page-wrap access-page phase81-access">
-    <PageHeader eyebrow="GOVERNANCE / ACCESS" title="Access & Organization" subtitle="Manage account security, role-scoped platform access and organization data. ECDAT enforces permissions server-side; sensitive assessment evidence never becomes accessible merely because a browser control is visible." />
+    <PageHeader eyebrow="GOVERNANCE / ACCESS" title="AUTHORIZATION & PERMISSIONS" subtitle="RUNS ENTIRELY ON LOCALHOST WITH STRICT ROLE-BASED ACCESS CONTROL AND DATA ISOLATION" />
 
     {auth && <section className="access-summary-grid">
       <article className="panel-v2 access-summary"><Building2 size={22} /><div><span>ACTIVE ORGANIZATION</span><strong>{auth.active_organization.name}</strong><small>{auth.organizations.length > 1 ? `${auth.organizations.length} authorized workspaces` : "Single authorized workspace"}</small></div></article>
@@ -167,7 +167,7 @@ export function AccessClient() {
 
     <section className="access-security-grid phase81-security-grid">
       <article className="panel-v2 account-security-panel">
-        <div className="panel-topline"><div><span className="kicker">ACCOUNT SECURITY</span><h2>Change password</h2></div><KeyRound size={20} /></div>
+        <div className="panel-topline"><div><span className="kicker">ACCOUNT SECURITY</span><h2>CHANGE PASSWORD</h2></div><KeyRound size={20} /></div>
         <p className="access-panel-copy">Verify your current password before replacing it. A successful change revokes the account's other active sessions.</p>
         <form className="security-form" onSubmit={submitPasswordChange}>
           <label><span>Current password</span><PasswordField ariaLabel="Current password" autoComplete="current-password" value={currentPassword} onChange={setCurrentPassword} /></label>
@@ -183,8 +183,8 @@ export function AccessClient() {
       </article>
 
       <article className="panel-v2 phase81-session-panel">
-        <div className="panel-topline"><div><span className="kicker">ACTIVE SESSIONS</span><h2>Signed-in account sessions</h2></div><Laptop2 size={20}/></div>
-        <p className="access-panel-copy">Review session activity for this account. ECDAT stores session tokens as hashes and lets you invalidate other sessions immediately.</p>
+        <div className="panel-topline"><div><span className="kicker">ACTIVE SESSIONS</span><h2>ACTIVE USER SESSIONS</h2></div><Laptop2 size={20}/></div>
+        <p className="access-panel-copy">QDeX stores session tokens as hashes and lets you invalidate other sessions immediately.</p>
         <div className="phase81-session-list">{sessions.map((session) => <div key={session.id}><span className={session.current ? "current" : ""}><LockKeyhole size={16}/></span><div><strong>{session.current ? "Current session" : "Authorized session"}</strong><small>Last active {relativeTime(session.last_seen_at)} · expires {new Date(session.expires_at).toLocaleString()}</small></div>{session.current && <b>CURRENT</b>}</div>)}</div>
         <button className="ghost-action phase81-session-revoke" type="button" onClick={signOutOtherSessions}>SIGN OUT OTHER SESSIONS</button>
         {sessionMessage && <div className="inline-success"><Check size={15}/>{sessionMessage}</div>}
@@ -192,8 +192,8 @@ export function AccessClient() {
     </section>
 
     {isAdmin && <section className="panel-v2 reset-data-panel phase81-reset-panel">
-      <div className="panel-topline"><div><span className="kicker">ORGANIZATION MAINTENANCE</span><h2>Reset assessment data</h2></div><Trash2 size={20} /></div>
-      <div className="danger-note"><AlertTriangle size={18} /><p><strong>Irreversible for this organization.</strong> Deletes assessment history, migration-plan revisions, organization-owned graph state and ECDAT-managed uploaded assessment workspaces. Organization identity, users, memberships and roles remain intact. External mounted directories are never deleted.</p></div>
+      <div className="panel-topline"><div><span className="kicker">ORGANIZATION MAINTENANCE</span><h2>RESET YOUR DATA</h2></div><Trash2 size={20} /></div>
+      <div className="danger-note"><AlertTriangle size={18} /><p><strong>IRREVERSIBLE!</strong> Deletes assessment history, migration-plan revisions, organization-owned graph state and QDeX-managed assessment workspaces. Organization identity, users, memberships and roles remain intact. External mounted directories are never deleted.</p></div>
       <form className="security-form phase81-reset-form" onSubmit={submitAssessmentReset}>
         <label><span>Administrator password</span><PasswordField ariaLabel="Administrator password" autoComplete="current-password" value={resetPassword} onChange={setResetPassword} /></label>
         <label><span>Type RESET to confirm</span><input value={resetConfirmation} onChange={(event) => setResetConfirmation(event.target.value)} placeholder="RESET" required /></label>
@@ -205,7 +205,7 @@ export function AccessClient() {
 
     {!isAdmin ? <section className="panel-v2 access-readonly"><ShieldCheck size={24} /><div><h2>Membership administration is restricted</h2><p>{canOperate ? "Your Security Architect / Analyst role can operate assessments, risk scenarios and migration planning, while membership and destructive organization controls remain Administrator-only." : "Your Viewer / Executive role is read-only. You can review authorized evidence, risk, readiness, migration and reports without changing organization state."}</p></div></section> : <div className="access-grid">
       <section className="panel-v2 access-members">
-        <div className="panel-topline"><div><span className="kicker">AUTHORIZED PERSONNEL</span><h2>Organization members</h2></div><UsersRound size={20} /></div>
+        <div className="panel-topline"><div><span className="kicker">STAFF</span><h2>AUTHORIZED MEMBERS</h2></div><UsersRound size={20} /></div>
         {memberError && <div className="form-alert form-alert-error member-alert"><AlertTriangle size={16} /><div><strong>Member update failed</strong><span>{memberError}</span></div></div>}
         <div className="member-table">{members.map((member) => <div className="member-row" key={member.membership_id}>
           <div className="member-identity"><b>{member.display_name.split(/\s+/).slice(0,2).map((part)=>part[0]).join("").toUpperCase()}</b><span><strong>{member.display_name}</strong><small>{member.email}</small></span></div>
@@ -216,7 +216,7 @@ export function AccessClient() {
       </section>
 
       <section className="panel-v2 invite-panel">
-        <div className="panel-topline"><div><span className="kicker">INVITATION-ONLY ENROLLMENT</span><h2>Authorize a professional</h2></div><UserPlus size={20} /></div>
+        <div className="panel-topline"><div><span className="kicker">INVITATION-ONLY ENROLLMENT</span><h2>AUTHORIZE A PROFESSIONAL</h2></div><UserPlus size={20} /></div>
         <form onSubmit={inviteMember} className="invite-form">
           <label><span>Professional work email</span><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="analyst@company.example" required /></label>
           <label><span>Organization role</span><select value={role} onChange={(event) => setRole(event.target.value as OrganizationRole)}>{roles.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
@@ -224,8 +224,8 @@ export function AccessClient() {
           <button className="primary-action" disabled={busy}>{busy ? "CREATING INVITATION…" : "CREATE SECURE INVITATION"}</button>
         </form>
         {inviteError && <div className="form-alert form-alert-error invite-alert"><AlertTriangle size={17} /><div><strong>Invitation not created</strong><span>{inviteError}</span></div></div>}
-        {invite && <div className="invite-result"><div><Check size={18} /><span><strong>Invitation created</strong><small>Expires {new Date(invite.expires_at).toLocaleString()}</small></span></div><code>{invite.invite_token}</code><button type="button" onClick={copyInvite}>{copied ? <Check size={15} /> : <Clipboard size={15} />}{copied ? "Copied invite link" : "Copy invite link"}</button><p>ECDAT does not email credentials. Deliver this one-time invitation link through an approved company communication channel.</p></div>}
-        <details className="workspace-create"><summary>Create another isolated workspace</summary><form onSubmit={createWorkspace}><label><span>Workspace / organization name</span><input value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} placeholder="Subsidiary or business unit" required /></label><button type="submit" disabled={busy}>CREATE WORKSPACE</button></form>{workspaceError && <div className="form-alert form-alert-error compact"><AlertTriangle size={15} /><div><span>{workspaceError}</span></div></div>}<p>Use separate workspaces when assessment history and access membership must remain isolated. You become the first administrator of the new workspace.</p></details>
+        {invite && <div className="invite-result"><div><Check size={18} /><span><strong>Invitation created</strong><small>Expires {new Date(invite.expires_at).toLocaleString()}</small></span></div><code>{invite.invite_token}</code><button type="button" onClick={copyInvite}>{copied ? <Check size={15} /> : <Clipboard size={15} />}{copied ? "Copied invite link" : "Copy invite link"}</button><p>Here is your QDeX one-time invitation link.</p></div>}
+        <details className="workspace-create"><summary>CREATE ANOTHER ISOLATED WORKSPACE</summary><form onSubmit={createWorkspace}><label><span>Workspace / organization name</span><input value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} placeholder="Subsidiary or business unit" required /></label><button type="submit" disabled={busy}>CREATE WORKSPACE</button></form>{workspaceError && <div className="form-alert form-alert-error compact"><AlertTriangle size={15} /><div><span>{workspaceError}</span></div></div>}<p>YOU BECOME THE FIRST ADMINISTRATOR OF THE NEW WORKSPACE.</p></details>
       </section>
     </div>}
   </div></AppShell>;

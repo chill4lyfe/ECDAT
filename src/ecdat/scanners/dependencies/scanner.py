@@ -31,6 +31,11 @@ _MANIFEST_NAMES = frozenset(
         "Cargo.toml",
         "Cargo.lock",
         "packages.lock.json",
+        "CMakeLists.txt",
+        "meson.build",
+        "conanfile.txt",
+        "vcpkg.json",
+        "Makefile",
     }
 )
 
@@ -67,6 +72,8 @@ _REGISTRY: dict[str, CryptoPackage] = {
     "jsonwebtoken-rust": CryptoPackage("jsonwebtoken", "rust", "JWT signing/verification"),
     "system.security.cryptography": CryptoPackage("System.Security.Cryptography", "dotnet", ".NET cryptography"),
     "bouncycastle.cryptography": CryptoPackage("BouncyCastle.Cryptography", "dotnet", "cryptography provider"),
+    "openssl-native": CryptoPackage("OpenSSL", "native", "native cryptography/TLS"),
+    "libsodium-native": CryptoPackage("libsodium", "native", "native cryptographic primitives"),
 }
 
 
@@ -83,12 +90,14 @@ def _registry_match(name: str, ecosystem: str) -> CryptoPackage | None:
                 return package
     if ecosystem == "dotnet" and key.startswith("system.security.cryptography"):
         return _REGISTRY["system.security.cryptography"]
+    if ecosystem == "native" and key in {"openssl-native", "libsodium-native"}:
+        return _REGISTRY[key]
     return None
 
 
 class DependencyScanner:
     scanner_id = "dependencies.manifest"
-    version = "0.1.0"
+    version = "0.2.0"
     capabilities = ScannerCapabilities(
         target_kinds=frozenset({TargetKind.DIRECTORY, TargetKind.REPOSITORY}),
         deterministic=True,
@@ -97,16 +106,25 @@ class DependencyScanner:
     async def scan(self, request: ScanRequest) -> tuple[Finding, ...]:
         root = resolve_target_root(request.target.locator)
         findings: list[Finding] = []
+        manifests_scanned = 0
+        parse_failures = 0
         for path in iter_files(root, names=_MANIFEST_NAMES, max_file_bytes=5_000_000):
             try:
                 dependencies = tuple(self._parse_manifest(path))
             except (OSError, ValueError, ET.ParseError, json.JSONDecodeError, tomllib.TOMLDecodeError):
+                parse_failures += 1
                 continue
+            manifests_scanned += 1
             for name, version, ecosystem, line in dependencies:
                 package = _registry_match(name, ecosystem)
                 if not package:
                     continue
                 findings.append(self._finding(request, root, path, package, name, version, line))
+        self.last_metrics = {
+            "manifests_scanned": manifests_scanned,
+            "parse_failures": parse_failures,
+            "raw_findings": len(findings),
+        }
         return tuple(findings)
 
     def _parse_manifest(self, path: Path) -> Iterable[tuple[str, str | None, str, int | None]]:
@@ -210,6 +228,35 @@ class DependencyScanner:
                 for dep_name, meta in framework.items():
                     version = meta.get("resolved") if isinstance(meta, dict) else None
                     yield dep_name, str(version) if version else None, "dotnet", None
+            return
+
+        if name in {"CMakeLists.txt", "meson.build", "conanfile.txt", "Makefile"}:
+            text = path.read_text(encoding="utf-8", errors="replace")
+            for line_no, raw in enumerate(text.splitlines(), 1):
+                lower = raw.lower()
+                if (
+                    "find_package(openssl" in lower
+                    or "openssl::crypto" in lower
+                    or "openssl::ssl" in lower
+                    or "dependency('openssl" in lower
+                    or 'dependency("openssl' in lower
+                    or "openssl/" in lower
+                    or "-lcrypto" in lower
+                    or "-lssl" in lower
+                ):
+                    yield "openssl-native", None, "native", line_no
+                if "libsodium" in lower or "-lsodium" in lower:
+                    yield "libsodium-native", None, "native", line_no
+            return
+
+        if name == "vcpkg.json":
+            data = json.loads(path.read_text(encoding="utf-8"))
+            for dep in data.get("dependencies", []) or []:
+                dep_name = dep if isinstance(dep, str) else dep.get("name") if isinstance(dep, dict) else None
+                if str(dep_name).lower() == "openssl":
+                    yield "openssl-native", None, "native", None
+                elif str(dep_name).lower() == "libsodium":
+                    yield "libsodium-native", None, "native", None
             return
 
         # Lightweight lockfile fallback for pnpm/yarn without pretending full semantic parsing.

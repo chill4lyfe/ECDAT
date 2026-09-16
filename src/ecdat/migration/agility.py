@@ -21,9 +21,12 @@ class CryptoAgilityEngine:
         finding_by_asset = {f"asset:{finding.asset.id}": finding for finding in summary.findings}
         readiness_types = {GraphNodeType.SERVICE, GraphNodeType.CONTAINER, GraphNodeType.REPOSITORY, GraphNodeType.APPLICATION}
 
+        def readiness_node(node) -> bool:
+            return bool(node and (node.node_type in readiness_types or node.properties.get("technical_component") is True))
+
         for edge in summary.graph_edges:
             owner = node_by_id.get(edge.source_id)
-            if edge.edge_type is GraphEdgeType.USES and owner and owner.node_type in readiness_types and edge.target_id in finding_by_asset:
+            if edge.edge_type is GraphEdgeType.USES and readiness_node(owner) and edge.target_id in finding_by_asset:
                 findings_by_context[edge.source_id].append(finding_by_asset[edge.target_id])
             if edge.edge_type in {GraphEdgeType.DEPENDS_ON, GraphEdgeType.CONNECTS_TO, GraphEdgeType.AUTHENTICATES_WITH}:
                 if edge.source_id.startswith("service:") and edge.target_id.startswith("service:"):
@@ -32,7 +35,7 @@ class CryptoAgilityEngine:
 
         scores: list[CryptoAgilityScore] = []
         for node in summary.graph_nodes:
-            if node.node_type not in readiness_types:
+            if not readiness_node(node):
                 continue
             if node.id.startswith("target:") and isinstance(summary.target.metadata.get("sources"), list):
                 # In a combined assessment the root is only an assessment container;
@@ -42,7 +45,9 @@ class CryptoAgilityEngine:
             # repository/container contexts are included only when they own evidence.
             findings = findings_by_context.get(node.id, [])
             source_context = node.properties.get("provenance") == "supplied_source"
-            if source_context and not findings:
+            technical_component = node.properties.get("technical_component") is True
+            technical_context = source_context or technical_component
+            if technical_context and not findings:
                 continue
             score = 82
             factors: list[AgilityFactor] = []
@@ -71,15 +76,19 @@ class CryptoAgilityEngine:
                 factors.append(AgilityFactor(code="short-migration", label="Shorter declared migration window", impact=6, rationale=f"Enterprise context estimates {migration_time:g} years of migration effort."))
                 score += 6
 
-            if source_context:
+            if technical_context:
                 # Missing enterprise topology reduces confidence, not the observable technical
-                # readiness itself.  Keep it explicit as a zero-impact factor and differentiate
-                # source contexts using evidence we can actually prove.
+                # readiness itself. Keep it explicit and differentiate source/component contexts
+                # only with evidence the graph can prove.
                 factors.append(AgilityFactor(
-                    code="source-context-only",
-                    label="Business topology not supplied",
+                    code="source-context-only" if source_context else "technical-component-only",
+                    label="Business topology not supplied" if source_context else "Technical component context",
                     impact=0,
-                    rationale="This is a technical-evidence readiness estimate for the supplied source. Service dependencies, business criticality and organization-specific migration lead time remain unknown.",
+                    rationale=(
+                        "This is a technical-evidence readiness estimate for the supplied source. Service dependencies, business criticality and organization-specific migration lead time remain unknown."
+                        if source_context
+                        else "This readiness estimate is scoped to an evidence-derived repository component. It helps localize engineering preparation without claiming that the component is an enterprise service or business dependency."
+                    ),
                 ))
                 detectors = {evidence.detector for finding in findings for evidence in finding.evidence}
                 evidence_records = [evidence for finding in findings for evidence in finding.evidence]
@@ -142,7 +151,7 @@ class CryptoAgilityEngine:
 
             score = max(0, min(100, score))
             difficulty = "low" if score >= 76 else "moderate" if score >= 56 else "high" if score >= 31 else "critical"
-            coverage = "good" if findings and migration_time > 0 and not source_context else "partial"
-            basis = "technical_evidence" if source_context else "enterprise_context"
+            coverage = "good" if findings and migration_time > 0 and not technical_context else "partial"
+            basis = "technical_evidence" if technical_context else "enterprise_context"
             scores.append(CryptoAgilityScore(node_id=node.id, label=node.label, score=score, difficulty=difficulty, coverage=coverage, basis=basis, factors=tuple(factors)))
         return tuple(sorted(scores, key=lambda item: (item.score, item.label)))

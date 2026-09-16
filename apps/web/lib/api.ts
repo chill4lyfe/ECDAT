@@ -41,8 +41,16 @@ function request(input: string, init: RequestInit = {}) {
 
 export type ReferenceAssessmentOptions = {
   display_name?: string; environment?: string; owner?: string; team?: string;
-  data_lifetime_years?: number; migration_time_years?: number; data_sensitivity?: string; business_criticality?: string;
-  public_exposure?: boolean; confidentiality_required?: boolean;
+  data_lifetime_years?: number | null; migration_time_years?: number | null; data_sensitivity?: string | null; business_criticality?: string | null;
+  public_exposure?: boolean | null; confidentiality_required?: boolean | null; context_profile?: string | null; assumption_basis?: string | null;
+};
+
+export type AssessmentRiskContextInput = {
+  quantum_horizon_years: number;
+  data_lifetime_years?: number | null; migration_time_years?: number | null;
+  data_sensitivity?: string | null; business_criticality?: string | null;
+  public_exposure?: boolean | null; confidentiality_required?: boolean | null;
+  context_profile?: string | null; assumption_basis?: string | null;
 };
 
 export async function fetchBootstrapStatus(): Promise<{ setup_required: boolean }> {
@@ -151,25 +159,25 @@ export async function updateMember(membershipId: string, payload: { role?: Organ
 
 export async function runReferenceAssessment(quantumHorizonYears = 15, options: ReferenceAssessmentOptions = {}): Promise<ScanSummary> {
   const query = new URLSearchParams({ quantum_horizon_years: String(quantumHorizonYears) });
-  for (const [key, value] of Object.entries(options)) if (value !== undefined) query.set(key, String(value));
+  for (const [key, value] of Object.entries(options)) if (value !== undefined && value !== null) query.set(key, String(value));
   const response = await request(`${API_BASE}/v1/scans/reference?${query}`, { method: "POST" });
   if (!response.ok) return fail(response, "Reference assessment failed");
   return response.json() as Promise<ScanSummary>;
 }
 
-export async function scanMountedPath(payload: { path: string; display_name: string; environment: string; owner: string; team: string; quantum_horizon_years: number; data_lifetime_years: number; migration_time_years: number; data_sensitivity: string; business_criticality: string; public_exposure: boolean; confidentiality_required: boolean }): Promise<ScanSummary> {
-  const response = await request(`${API_BASE}/v1/scans/directory`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: payload.path, display_name: payload.display_name, environment: payload.environment, owner: payload.owner, team: payload.team, source_name: "Mounted workspace", risk_context: { data_lifetime_years: payload.data_lifetime_years, migration_time_years: payload.migration_time_years, quantum_horizon_years: payload.quantum_horizon_years, data_sensitivity: payload.data_sensitivity, business_criticality: payload.business_criticality, public_exposure: payload.public_exposure, confidentiality_required: payload.confidentiality_required } }) });
+export async function scanMountedPath(payload: { path: string; display_name: string; environment: string; owner: string; team: string } & AssessmentRiskContextInput): Promise<ScanSummary> {
+  const response = await request(`${API_BASE}/v1/scans/directory`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: payload.path, display_name: payload.display_name, environment: payload.environment, owner: payload.owner, team: payload.team, source_name: "Mounted workspace", risk_context: { data_lifetime_years: payload.data_lifetime_years ?? null, migration_time_years: payload.migration_time_years ?? null, quantum_horizon_years: payload.quantum_horizon_years, data_sensitivity: payload.data_sensitivity ?? null, business_criticality: payload.business_criticality ?? null, public_exposure: payload.public_exposure ?? null, confidentiality_required: payload.confidentiality_required ?? null, context_profile: payload.context_profile ?? null, assumption_basis: payload.assumption_basis ?? null } }) });
   if (!response.ok) return fail(response, "Directory assessment failed");
   return response.json() as Promise<ScanSummary>;
 }
 
 export type AssessmentUploadSource = { file: File; kind: "repository" | "container_image" | "bom" | "connector" | "context" };
 
-export async function uploadMultiSourceAssessment(sources: AssessmentUploadSource[], options: Record<string, string | number | boolean>): Promise<ScanSummary> {
+export async function uploadMultiSourceAssessment(sources: AssessmentUploadSource[], options: Record<string, string | number | boolean | null | undefined>): Promise<ScanSummary> {
   const form = new FormData();
   sources.forEach((source) => form.append("files", source.file));
   form.append("source_kinds", JSON.stringify(sources.map((source) => source.kind)));
-  Object.entries(options).forEach(([key, value]) => form.append(key, String(value)));
+  Object.entries(options).forEach(([key, value]) => { if (value !== null && value !== undefined) form.append(key, String(value)); });
   const response = await request(`${API_BASE}/v1/intake/assessment`, { method: "POST", body: form });
   if (!response.ok) return fail(response, "Assessment intake failed");
   return response.json() as Promise<ScanSummary>;
