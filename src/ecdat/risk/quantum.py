@@ -47,6 +47,9 @@ def _ranked(value: str | None, table: dict[str, int]) -> int:
 def _purpose(asset: CryptoAsset) -> str:
     values = [
         asset.properties.get("purpose"),
+        asset.properties.get("purposes"),
+        asset.properties.get("operation"),
+        asset.properties.get("operations"),
         asset.properties.get("config_kind"),
         asset.properties.get("capability"),
     ]
@@ -229,6 +232,8 @@ class QuantumRiskEngine:
                 "business_criticality": context.business_criticality,
                 "public_exposure": context.public_exposure,
                 "confidentiality_required": context.confidentiality_required,
+                "context_profile": context.context_profile,
+                "assumption_basis": context.assumption_basis,
                 "mosca_equation": "X + Y > Z",
             },
             score=score,

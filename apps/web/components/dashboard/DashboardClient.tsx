@@ -61,8 +61,7 @@ export function DashboardClient() {
       <div className="page-wrap dashboard-page">
         <PageHeader
           eyebrow="OVERVIEW / ENTERPRISE CRYPTOGRAPHIC POSTURE"
-          title="Cryptographic Posture"
-          subtitle="A decision-focused view of discovered cryptography, quantum-era exposure, system impact and migration priorities — all linked back to retained evidence."
+          title="CRYPTOGRAPHIC OVERVIEW"
           actions={<div className="dashboard-header-actions"><Link href="/intake" className="primary-action"><Import size={15} /> Start Assessment</Link><button className="ghost-action" onClick={scan} disabled={running}>{running ? <Activity className="spin" size={14} /> : <Play size={14} fill="currentColor" />}{running ? "Analyzing Demonstration" : "Load Demonstration Assessment"}</button></div>}
         />
 
@@ -147,7 +146,7 @@ export function DashboardClient() {
           </article>
         </section>
 
-        {summary?.coverage && <section className={`coverage-disclosure panel-v2${summary.findings.length === 0 ? " zero" : ""}`}><div><span className="kicker">ASSESSMENT COVERAGE</span><h2>{summary.findings.length === 0 ? "No supported cryptographic evidence was detected." : "What this assessment actually inspected"}</h2><p>{summary.findings.length === 0 ? `ECDAT inspected ${summary.coverage.files_observed} files with ${summary.coverage.scanners_completed} completed analyzers. A zero result is not proof that no cryptography exists; unsupported formats, runtime-generated use and dynamically loaded implementations can remain outside static visibility.` : `${summary.coverage.files_observed} files observed · ${summary.coverage.evidence_records} evidence records · ${summary.coverage.scanners_completed} analyzers completed.`}</p></div><div className="coverage-mini"><span><b>{summary.coverage.source_files}</b> source</span><span><b>{summary.coverage.config_files}</b> config</span><span><b>{summary.coverage.dependency_manifests}</b> manifests</span><span><b>{summary.coverage.binary_files}</b> binaries</span></div></section>}
+        {summary?.coverage && <section className={`coverage-disclosure panel-v2${summary.findings.length === 0 ? " zero" : ""}`}><div><span className="kicker">ASSESSMENT COVERAGE</span><h2>{summary.findings.length === 0 ? "No supported cryptographic evidence was detected." : "What this assessment actually inspected"}</h2><p>{summary.findings.length === 0 ? `QDeX inspected ${summary.coverage.files_observed} files with ${summary.coverage.scanners_completed} completed analyzers. A zero result is not proof that no cryptography exists; unsupported formats, runtime-generated use and dynamically loaded implementations can remain outside static visibility.` : `${summary.coverage.files_observed} files observed · ${summary.coverage.evidence_records} evidence records · ${summary.coverage.scanners_completed} analyzers completed.`}</p></div><div className="coverage-mini"><span><b>{summary.coverage.source_files}</b> source</span><span><b>{summary.coverage.config_files}</b> config</span><span><b>{summary.coverage.dependency_manifests}</b> manifests</span><span><b>{summary.coverage.binary_files}</b> binaries</span></div></section>}
 
         <section className="roadmap-launch-strip panel-v2">
           <div><Route size={18} /><span><b>MIGRATION PLANNING READY</b><small>Convert the current graph into dependency-safe execution waves and contextual PQC/hybrid targets.</small></span></div>

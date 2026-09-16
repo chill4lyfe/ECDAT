@@ -42,6 +42,7 @@ reports/generated/
 *.bundle
 
 # Temporary archives
+benchmark-data/
 docs/
 *.zip
 *.tar

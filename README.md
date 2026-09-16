@@ -1,16 +1,16 @@
-# ECDAT
+# QDeX 
 
 ### Enterprise Cryptographic Discovery & Analysis Tool
 
 **SIH26164 · Smart India Hackathon 2026**
 
-We built ECDAT because post-quantum migration has a pretty obvious first problem:
+We built QDeX because post-quantum migration has a pretty obvious first problem:
 
 > **you can't migrate cryptography you don't even know you're using.**
 
 In a real company, crypto is scattered everywhere — source code, dependencies, certificates, TLS configs, container images, BOMs, cloud/KMS inventories, old services nobody wants to touch, and probably three places everyone forgot existed.
 
-ECDAT takes the evidence an organization already has, finds the cryptography inside it, keeps track of *where every finding came from*, maps what depends on what, works out what actually needs attention for the quantum era, and turns that into a migration plan people can act on.
+QDeX takes the evidence an organization already has, finds the cryptography inside it, keeps track of *where every finding came from*, maps what depends on what, works out what actually needs attention for the quantum era, and turns that into a migration plan people can act on.
 
 So basically, we wanted to go further than:
 
@@ -49,7 +49,13 @@ Every source keeps its own provenance. If the same cryptographic asset shows up 
 
 ---
 
-## What ECDAT can do
+### BENCHMARKED ON REAL WORLD REPOS
+
+![BENCHMARK IMAGE](./apps/web/public/benchmark.png)
+
+---
+
+## What QDeX can do
 
 - discover cryptographic usage across multiple enterprise artifact types
 - normalize findings into a canonical crypto inventory
@@ -73,7 +79,7 @@ Every source keeps its own provenance. If the same cryptographic asset shows up 
 
 > (yes, we intentionally made these different)
 
-We did **not** want the roadmap to fake precision. If ECDAT only has technical evidence, it can tell you what is urgent and group work into sensible **execution stages**. But it cannot honestly claim it knows the company's real deployment order. If reviewed enterprise dependencies are supplied, then ECDAT can build **migration waves** with prerequisites, blockers and a defensible critical path.
+We did **not** want the roadmap to fake precision. If QDeX only has technical evidence, it can tell you what is urgent and group work into sensible **execution stages**. But it cannot honestly claim it knows the company's real deployment order. If reviewed enterprise dependencies are supplied, then QDeX can build **migration waves** with prerequisites, blockers and a defensible critical path.
 
 **Priority answers “what needs attention first?”**  
 **Waves answer “what order can we realistically change this in?”**
@@ -82,7 +88,7 @@ We did **not** want the roadmap to fake precision. If ECDAT only has technical e
 
 ## Quantum risk, without pretending we know the future
 
-ECDAT treats major classical public-key families such as RSA, DH, ECDH, ECDSA and related ECC schemes as quantum-vulnerable for planning purposes. Strong symmetric/hash crypto is handled differently, and standardized PQC algorithms are treated as the migration baseline.
+QDeX treats major classical public-key families such as RSA, DH, ECDH, ECDSA and related ECC schemes as quantum-vulnerable for planning purposes. Strong symmetric/hash crypto is handled differently, and standardized PQC algorithms are treated as the migration baseline.
 
 For timing, we use the simple planning model:
 
@@ -133,7 +139,7 @@ Then open:
 http://localhost:3000
 ```
 
-On the first launch, ECDAT takes you through secure setup for the first organization and its Organization Administrator. After that, users sign in normally; additional users are invitation-only.
+On the first launch, QDeX takes you through secure setup for the first organization and its Organization Administrator. After that, users sign in normally; additional users are invitation-only.
 
 ### Roles
 
@@ -179,7 +185,7 @@ Important bit: the demo is still just **input**. It goes through the same pipeli
 
 We would rather be clear about this than oversell a hackathon project.
 
-ECDAT does **not** currently claim to be:
+QDeX does **not** currently claim to be:
 
 - a full live runtime instrumentation platform
 - a universal reverse-engineering / deep binary analysis suite
@@ -202,7 +208,7 @@ But:
 
 > “We found RSA **here**, from **this evidence**. It affects **these systems**. Under **these explicit assumptions**, it has **this priority**. These dependencies may block the change. Here is the standards-based target, and here is a migration order we can actually defend.”
 
-That is basically ECDAT.
+That is basically QDeX .
 
 ---
 

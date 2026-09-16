@@ -58,20 +58,19 @@ export default function Home() {
       <header className="landing-topbar">
         <Link href="/" className="landing-brand" aria-label="ECDAT home">
           <div className="landing-brand-icon"><img src="/icons/icon.png" alt="" /></div>
-          <div><strong>ECDAT</strong><span>Enterprise Cryptographic Discovery & Analysis Tool</span></div>
+          <div><strong>QDeX</strong><span>Enterprise Cryptographic Discovery & Analysis Tool</span></div>
         </Link>
         <nav className="landing-topbar-actions" aria-label="Landing navigation">
-          <Link href="/dashboard" className="text-link">View platform</Link>
-          <Link href="/intake" className="primary-action landing-cta-sm">Start an assessment</Link>
+          <Link href="/dashboard" className="text-link">VIEW PLATFORM</Link>
+          <Link href="/intake" className="primary-action landing-cta-sm">START AN ASSESSMENT</Link>
         </nav>
       </header>
 
       <section className="landing-hero phase7-hero">
         <div className="landing-copy">
-          <div className="eyebrow landing-eyebrow"><Landmark size={14} /> Enterprise cryptographic intelligence</div>
-          <h1>Prepare enterprise systems for the post-quantum transition.</h1>
+          <h1>PREPARE ENTERPRISES FOR THE POST-QUANTUM SHIFT</h1>
           <p>
-            ECDAT discovers where cryptography is used, explains which systems need attention, traces enterprise dependencies,
+            QDeX discovers where cryptography is used, explains which systems need attention, traces enterprise dependencies,
             and builds an evidence-backed migration roadmap from the same verified assessment data.
           </p>
           <div className="landing-actions">
@@ -103,7 +102,7 @@ export default function Home() {
       </section>
 
       <section className="landing-section-intro">
-        <span className="kicker">How ECDAT works</span>
+        <span className="kicker">How QDeX works</span>
         <h2>Clear enough for decision-makers. Detailed enough for security engineers.</h2>
         <p>The platform keeps technical depth available while presenting each stage in plain language and preserving a traceable evidence chain.</p>
       </section>

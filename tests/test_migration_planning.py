@@ -61,3 +61,14 @@ async def test_quantum_horizon_propagates_into_migration_prioritization() -> Non
     long_scores = {item.asset_id: item.priority_score for item in long.recommendations}
     assert any(short_scores[asset_id] > long_scores[asset_id] for asset_id in short_scores.keys() & long_scores.keys())
     assert [item.id for item in short.waves[0].actions] != [item.id for item in long.waves[0].actions]
+
+
+async def test_recommendation_confidence_explains_its_inputs_and_specificity() -> None:
+    summary = await reference_summary()
+    plan = MigrationPlanner().build(summary, MigrationConstraints(mode="balanced", prefer_hybrid=True, max_parallel_actions=3, change_window_weeks=12))
+    assert plan.recommendations
+    recommendation = plan.recommendations[0]
+    reasons = " ".join(recommendation.confidence.reasons).lower()
+    assert "evidence confidence" in reasons
+    assert "specificity factor" in reasons
+    assert "final confidence" in reasons

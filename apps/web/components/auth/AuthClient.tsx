@@ -89,12 +89,12 @@ export function AuthClient() {
   }
 
   return <main className="auth-page">
-    <div className="auth-brand"><div className="auth-brand-mark"><ShieldCheck size={28} /></div><div><b>ECDAT</b><span>Enterprise Cryptographic Intelligence</span></div></div>
+    <div className="auth-brand"><div className="auth-brand-mark"><ShieldCheck size={28} /></div><div><b>QDeX</b><span>Enterprise Cryptographic Intelligence</span></div></div>
     <section className="auth-shell">
       <div className="auth-context">
         <span className="kicker">LOCAL-FIRST ACCESS CONTROL</span>
-        <h1>{mode === "setup" ? "Establish your organization workspace" : mode === "invite" ? "Accept organization access" : "Sign in to ECDAT"}</h1>
-        <p>{mode === "setup" ? "Create the first organization administrator for this self-hosted installation. Existing local assessments are assigned to this organization during first-time setup." : mode === "invite" ? "Access is invitation-only. Your membership and role are verified by the local ECDAT server before any assessment data is returned." : "Use your individual account. If your email is authorized in more than one organization, ECDAT verifies your credentials first and then asks which isolated workspace you want to enter."}</p>
+        <h1>{mode === "setup" ? "Establish your organization workspace" : mode === "invite" ? "Accept organization access" : "Sign in to QDeX"}</h1>
+        <p>{mode === "setup" ? "Create the first organization administrator for this self-hosted installation. Existing local assessments are assigned to this organization during first-time setup." : mode === "invite" ? "Access is invitation-only. Your membership and role are verified by the local QDeX server before any assessment data is returned." : "Use your individual account. If your email is authorized in more than one organization, ECDAT verifies your credentials first and then asks which isolated workspace you want to enter."}</p>
         <div className="auth-assurance">
           <div><LockKeyhole size={17} /><span><strong>Local credentials</strong><small>Passwords and sessions remain inside the company-hosted deployment.</small></span></div>
           <div><Building2 size={17} /><span><strong>Organization isolation</strong><small>Assessment history and plans are scoped to the active authorized workspace.</small></span></div>
@@ -125,6 +125,6 @@ export function AuthClient() {
         </>}
       </form>
     </section>
-    <footer className="auth-footer"><Link href="/">Back to platform overview</Link><span>ECDAT local-first deployment</span></footer>
+    <footer className="auth-footer"><Link href="/">Back to platform overview</Link><span>QDeX local-first deployment</span></footer>
   </main>;
 }

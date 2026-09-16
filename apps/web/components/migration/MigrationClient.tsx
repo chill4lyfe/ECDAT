@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, ArrowRight, Boxes, Cable, CheckCircle2, CircleGauge, Clock3, GitPullRequestArrow, ListChecks, Network, Play, Route, ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, TimerReset, TriangleAlert } from "lucide-react";
+import { Activity, ArrowRight, Boxes, Cable, CheckCircle2, ChevronDown, ChevronRight, CircleGauge, Clock3, GitPullRequestArrow, ListChecks, Network, Play, Route, Search, ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, TimerReset, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell, PageHeader } from "@/components/shell/AppShell";
 import { buildMigrationPlan, fetchLatestMigrationPlan, fetchLatestScan, runReferenceAssessment } from "@/lib/api";
@@ -21,6 +21,8 @@ export function MigrationClient() {
   const [selected, setSelected] = useState<MigrationAction | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ledgerQuery, setLedgerQuery] = useState("");
+  const [expandedStages, setExpandedStages] = useState<Set<number>>(() => new Set());
 
   useEffect(() => {
     Promise.all([fetchLatestScan(), fetchLatestMigrationPlan()]).then(([latestScan, latestPlan]) => {
@@ -74,14 +76,32 @@ export function MigrationClient() {
   const dependencyAware = plan?.sequencing_mode !== "evidence_prioritized";
   const executionLabel = dependencyAware ? "wave" : "stage";
   const graphLabelById = useMemo(() => new Map((scan?.graph_nodes ?? []).map((node) => [node.id, node.label])), [scan]);
+  const ledgerWaves = useMemo(() => {
+    if (!plan) return [];
+    const needle = ledgerQuery.trim().toLowerCase();
+    if (!needle) return plan.waves;
+    return plan.waves.map((wave) => ({
+      ...wave,
+      actions: wave.actions.filter((action) => {
+        const contexts = action.affected_service_ids.map((id) => graphLabelById.get(id) ?? id).join(" ");
+        const haystack = [wave.title, action.label, action.target_profiles.join(" "), contexts, action.rationale.join(" ")].join(" ").toLowerCase();
+        return haystack.includes(needle);
+      }),
+    })).filter((wave) => wave.actions.length > 0);
+  }, [plan, ledgerQuery, graphLabelById]);
+
+  const toggleStage = (wave: number) => setExpandedStages((current) => {
+    const next = new Set(current);
+    if (next.has(wave)) next.delete(wave); else next.add(wave);
+    return next;
+  });
 
   return (
     <AppShell>
       <div className="page-wrap migration-page">
         <PageHeader
           eyebrow="PLANNING / MIGRATION PROGRAMME"
-          title="Migration Roadmap"
-          subtitle="Build an evidence-linked transition programme from verified cryptography, quantum risk and operational constraints. Where enterprise dependencies are available ECDAT produces dependency-aware waves; otherwise it presents clearly labelled evidence-prioritized execution stages without inventing topology."
+          title="MIGRATION PLANNER"
           actions={<button className="primary-action" onClick={generate} disabled={running}>{running ? <Activity className="spin" size={16} /> : <Play size={15} fill="currentColor" />}{running ? "Planning" : plan ? "Rebuild Roadmap" : scan ? "Generate Roadmap" : "Load Demonstration + Plan"}</button>}
         />
 
@@ -113,9 +133,8 @@ export function MigrationClient() {
         {plan && <section className="phase8-plan-brief panel-v2">
           <div className="phase8-plan-brief-copy">
             <span className="kicker">ROADMAP DECISION BRIEF</span>
-            <h2>What this programme requires</h2>
-            <p>{dependencyAware ? "ECDAT has converted the current evidence snapshot into a dependency-aware implementation programme. Waves respect verified service relationships, shared blockers, selected post-quantum policy and the change window above." : "ECDAT has converted the current evidence snapshot into an evidence-prioritized engineering programme. Because service dependency topology was not supplied, these stages group work by remediation purpose and urgency without pretending to know cutover order."}</p>
-          </div>
+            <h2>QDeX built a dependency-safe execution plan, driven by your policies, blockers, and timelines.</h2>
+            </div>
           <div className="phase8-plan-brief-grid">
             <article><Network size={18} /><div><strong>{servicesAffected}</strong><span>affected service contexts</span></div></article>
             <article><ShieldAlert size={18} /><div><strong>{urgentActions}</strong><span>high-priority actions</span></div></article>
@@ -124,7 +143,7 @@ export function MigrationClient() {
           </div>
           <div className="phase8-critical-path">
             <div><ListChecks size={17} /><strong>{dependencyAware ? "Critical path" : "Dependency status"}</strong><span>{dependencyAware ? (criticalPathLabels.length ? `${criticalPathLabels.length} dependent actions` : "No dependent chain identified") : "Topology not supplied"}</span></div>
-            <p>{dependencyAware ? (criticalPathLabels.length ? criticalPathLabels.join("  →  ") : "No multi-action prerequisite chain is visible in the supplied dependency topology.") : "ECDAT will not fabricate a dependency critical path. Add enterprise context when the organization is ready to convert these evidence-prioritized stages into dependency-safe migration waves."}</p>
+            <p>{dependencyAware ? (criticalPathLabels.length ? criticalPathLabels.join("  →  ") : "No multi-action prerequisite chain is visible in the supplied dependency topology.") : "QDeX will not fabricate a dependency critical path. Add enterprise context when the organization is ready to convert these evidence-prioritized stages into dependency-safe migration waves."}</p>
           </div>
         </section>}
 
@@ -151,15 +170,22 @@ export function MigrationClient() {
               <Section title="WHY THIS IS PRIORITIZED" items={selected.rationale} />
               <Section title="PREREQUISITES" items={selectedRecommendation?.prerequisites ?? []} muted />
               <Section title="INTEROPERABILITY NOTES" items={selectedRecommendation?.interoperability_notes ?? []} muted />
-              <div className="confidence-strip"><Sparkles size={13} /><span>recommendation confidence</span><strong>{Math.round((selectedRecommendation?.confidence.score ?? 0) * 100)}%</strong></div>
+              {selectedRecommendation && <div className={`recommendation-confidence confidence-${selectedRecommendation.confidence.level}`}>
+                <div className="recommendation-confidence-head"><Sparkles size={14}/><span>RECOMMENDATION CONFIDENCE</span><strong>{Math.round(selectedRecommendation.confidence.score * 100)}% · {selectedRecommendation.confidence.level.toUpperCase()}</strong></div>
+                <div className="recommendation-confidence-bar" aria-label={`Recommendation confidence ${Math.round(selectedRecommendation.confidence.score * 100)} percent`}><i style={{width:`${Math.round(selectedRecommendation.confidence.score * 100)}%`}}/></div>
+                <p>This is confidence in the migration recommendation, not the asset's risk score.</p>
+                <div className="recommendation-confidence-reasons"><span className="kicker">WHY THIS CONFIDENCE</span>{selectedRecommendation.confidence.reasons.map((reason) => <div key={reason}><CheckCircle2 size={12}/><span>{reason}</span></div>)}</div>
+              </div>}
             </div> : <div className="empty-copy">Generate a roadmap, then select an action node.</div>}
           </aside>
         </section>
 
         {plan && <section className="wave-ledger panel-v2">
-          <div className="panel-topline"><div><span className="kicker">PROGRAMME EXECUTION LEDGER</span><h2>Migration actions grouped by execution {executionLabel}</h2></div><span className="count-chip">{actions.length} ACTIONS</span></div>
+          <div className="panel-topline wave-ledger-top"><div><span className="kicker">PROGRAMME EXECUTION LEDGER</span><h2>Migration actions grouped by execution {executionLabel}</h2><p>Search the programme or expand only the {executionLabel} you need. Large assessments stay compact until you choose a work group.</p></div><span className="count-chip">{actions.length} ACTIONS</span></div>
+          <div className="wave-ledger-tools"><label className="search-box"><Search size={14}/><input value={ledgerQuery} onChange={(event) => setLedgerQuery(event.target.value)} placeholder="Search action, target, system or rationale…"/></label><span>{ledgerQuery.trim() ? `${ledgerWaves.reduce((count, wave) => count + wave.actions.length, 0)} matching actions` : `${plan.waves.length} ${dependencyAware ? "waves" : "stages"} · collapsed by default`}</span></div>
           <div className="wave-ledger-table">
-            {plan.waves.map((wave) => <div className="wave-ledger-section" key={wave.wave}><div className="wave-ledger-head"><b>{dependencyAware ? "W" : "S"}{String(wave.wave).padStart(2, "0")}</b><strong>{wave.title}</strong><span>weeks {wave.starts_week}–{wave.ends_week} · {wave.estimated_duration_weeks}w · {wave.parallel_slots} parallel · {wave.within_change_window ? "inside window" : "outside window"}</span></div>{wave.actions.map((action) => <button key={action.id} className={`${selected?.id === action.id ? "selected" : ""}${!action.within_change_window ? " outside-window" : ""}`} onClick={() => setSelected(action)}><span className="action-dot" /><strong>{action.label}</strong><span>{action.target_profiles.join(" + ") || "resolve context"} · {action.estimated_weeks}w</span><b>{action.priority_score}</b></button>)}</div>)}
+            {ledgerWaves.map((wave) => { const open = Boolean(ledgerQuery.trim()) || expandedStages.has(wave.wave); return <div className="wave-ledger-section" key={wave.wave}><button type="button" className="wave-ledger-head" onClick={() => !ledgerQuery.trim() && toggleStage(wave.wave)} aria-expanded={open}><b>{dependencyAware ? "W" : "S"}{String(wave.wave).padStart(2, "0")}</b><strong>{wave.title}</strong><span>weeks {wave.starts_week}–{wave.ends_week} · {wave.estimated_duration_weeks}w · {wave.parallel_slots} parallel · {wave.actions.length} action{wave.actions.length === 1 ? "" : "s"}</span><i>{open ? <ChevronDown size={15}/> : <ChevronRight size={15}/>}</i></button>{open && <div className="wave-ledger-actions">{wave.actions.map((action) => <button key={action.id} className={`${selected?.id === action.id ? "selected" : ""}${!action.within_change_window ? " outside-window" : ""}`} onClick={() => setSelected(action)}><span className="action-dot" /><strong>{action.label}</strong><span>{action.target_profiles.join(" + ") || "resolve context"} · {action.estimated_weeks}w</span><b>{action.priority_score}</b></button>)}</div>}</div>; })}
+            {ledgerWaves.length === 0 && <div className="wave-ledger-empty">No migration actions match this search.</div>}
           </div>
         </section>}
       </div>
@@ -179,36 +205,50 @@ function Section({ title, items, muted }: { title: string; items: string[]; mute
 }
 
 function MigrationEmpty({ onGenerate, running }: { onGenerate: () => void; running: boolean }) {
-  return <div className="migration-empty"><div className="migration-orbit"><i /><i /><i /><Route size={26} /></div><strong>NO MIGRATION ROADMAP AVAILABLE</strong><p>Generate a roadmap from the latest evidence-linked assessment. ECDAT will use dependency-aware waves when topology exists, or evidence-prioritized execution stages when it does not.</p><button className="ghost-action" onClick={onGenerate} disabled={running}>Generate Roadmap</button></div>;
+  return <div className="migration-empty"><div className="migration-orbit"><i /><i /><i /><Route size={26} /></div><strong>NO MIGRATION ROADMAP AVAILABLE</strong><p>Generate a roadmap from the latest evidence-linked assessment. QDeX will use dependency-aware waves when topology exists, or evidence-prioritized execution stages when it does not.</p><button className="ghost-action" onClick={onGenerate} disabled={running}>Generate Roadmap</button></div>;
 }
 
 function RoadmapFlow({ plan, selected, onSelect, contextLabels }: { plan: MigrationRoadmap; selected: string | null; onSelect: (action: MigrationAction) => void; contextLabels: Map<string, string> }) {
   const actions = plan.waves.flatMap((wave) => wave.actions);
-  const width = Math.max(920, plan.waves.length * 255 + 150);
-  const height = Math.max(440, Math.max(...plan.waves.map((wave) => wave.actions.length), 1) * 105 + 150);
+  const dense = actions.length > 90;
+  const visibleByWave = new Map<number, MigrationAction[]>();
+  for (const wave of plan.waves) {
+    if (!dense) { visibleByWave.set(wave.wave, wave.actions); continue; }
+    const selectedAction = selected ? wave.actions.find((action) => action.id === selected) : undefined;
+    const top = [...wave.actions].sort((a, b) => b.priority_score - a.priority_score).slice(0, selectedAction ? 7 : 8);
+    if (selectedAction && !top.some((action) => action.id === selectedAction.id)) top.push(selectedAction);
+    visibleByWave.set(wave.wave, top);
+  }
+  const displayActions = plan.waves.flatMap((wave) => visibleByWave.get(wave.wave) ?? []);
+  const stageWidth = dense ? 330 : 300;
+  const stageStart = 132;
+  const width = Math.max(920, plan.waves.length * stageWidth + 190);
+  const maxVisible = Math.max(...plan.waves.map((wave) => (visibleByWave.get(wave.wave) ?? []).length), 1);
+  const rowHeight = dense ? 94 : 110;
+  const height = Math.max(470, maxVisible * rowHeight + (dense ? 190 : 165));
   const positions = new Map<string, { x: number; y: number }>();
-  plan.waves.forEach((wave, waveIndex) => wave.actions.forEach((action, actionIndex) => {
-    positions.set(action.id, { x: 110 + waveIndex * 255, y: 105 + actionIndex * 105 });
+  plan.waves.forEach((wave, waveIndex) => (visibleByWave.get(wave.wave) ?? []).forEach((action, actionIndex) => {
+    positions.set(action.id, { x: stageStart + waveIndex * stageWidth, y: 126 + actionIndex * rowHeight });
   }));
   const dependencyAware = plan.sequencing_mode !== "evidence_prioritized";
-  return <div className="roadmap-flow-wrap"><svg className="roadmap-flow" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={dependencyAware ? "Dependency-aware migration roadmap" : "Evidence-prioritized migration execution stages"}>
-    <defs><marker id="migration-arrow" viewBox="0 -5 10 10" refX="25" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,-5L10,0L0,5" /></marker><filter id="migration-glow"><feGaussianBlur stdDeviation="4" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter></defs>
-    {plan.waves.map((wave, index) => <g key={`wave-title-${wave.wave}`}><text x={110 + index * 255} y="42" className="roadmap-wave-no">{dependencyAware ? "WAVE" : "STAGE"} {String(wave.wave).padStart(2, "0")}</text><text x={110 + index * 255} y="61" className="roadmap-wave-title">{wave.title.slice(0, 30)}</text><line x1={110 + index * 255} x2={110 + index * 255} y1="76" y2={height - 38} className="wave-guide" /></g>)}
-    {actions.flatMap((action) => action.prerequisite_action_ids.map((prereq) => {
+  return <div className={`roadmap-flow-wrap${dense ? " dense-plan" : ""}`}>{dense && <div className="roadmap-density-note"><strong>LARGE PLAN OVERVIEW</strong><span>Showing the highest-priority actions in each {dependencyAware ? "wave" : "stage"}; all {actions.length} actions remain searchable in the execution ledger below.</span></div>}<svg className="roadmap-flow" style={{ width: `${width}px`, minWidth: `${width}px` }} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={dependencyAware ? "Dependency-aware migration roadmap" : "Evidence-prioritized migration execution stages"}>
+    <defs><marker id="migration-arrow" viewBox="0 -5 10 10" refX="25" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,-5L10,0L0,5" /></marker><filter id="migration-glow"><feGaussianBlur stdDeviation={dense ? "2" : "4"} result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter></defs>
+    {plan.waves.map((wave, index) => { const x = stageStart + index * stageWidth; return <g key={`wave-title-${wave.wave}`}><text x={x} y="42" className="roadmap-wave-no">{dependencyAware ? "WAVE" : "STAGE"} {String(wave.wave).padStart(2, "0")}</text><text x={x} y="64" className="roadmap-wave-title">{wave.title.slice(0, 38)}</text><text x={x} y="84" className="roadmap-wave-count">{wave.actions.length} action{wave.actions.length === 1 ? "" : "s"}</text><line x1={x} x2={x} y1="98" y2={height - 38} className="wave-guide" /></g>; })}
+    {!dense && displayActions.flatMap((action) => action.prerequisite_action_ids.map((prereq) => {
       const from = positions.get(prereq); const to = positions.get(action.id); if (!from || !to) return null;
       const mid = (from.x + to.x) / 2;
       return <path key={`${prereq}-${action.id}`} d={`M${from.x + 25},${from.y} C${mid},${from.y} ${mid},${to.y} ${to.x - 25},${to.y}`} className="migration-link" markerEnd="url(#migration-arrow)" />;
     }))}
-    {actions.map((action) => {
+    {displayActions.map((action) => {
       const pos = positions.get(action.id)!;
       const isSelected = selected === action.id;
       return <g key={action.id} transform={`translate(${pos.x},${pos.y})`} className={`roadmap-node ${isSelected ? "selected" : ""}`} onClick={() => onSelect(action)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(action); } }} role="button" tabIndex={0} aria-label={`${action.label}, priority ${action.priority_score}`}>
-        <circle r="28" className="roadmap-node-halo" />
-        <circle r="18" className="roadmap-node-disc" filter="url(#migration-glow)" />
+        <circle r={dense ? "23" : "28"} className="roadmap-node-halo" />
+        <circle r={dense ? "15" : "18"} className="roadmap-node-disc" filter="url(#migration-glow)" />
         <text y="4" textAnchor="middle" className="roadmap-node-score">{action.priority_score}</text>
-        <text x="33" y="-5" className="roadmap-node-label">{action.label.slice(0, 28)}</text>
-        <text x="33" y="12" className="roadmap-node-target">{action.target_profiles[0]?.slice(0, 28) ?? "context review"}</text>
-        <text x="33" y="27" className="roadmap-node-context">{action.affected_service_ids.length ? (contextLabels.get(action.affected_service_ids[0]) ?? action.affected_service_ids[0].replace(/^service:/, "").replace(/^source:/, "")).slice(0, 28) : "unowned evidence"}</text>
+        <text x="36" y="-7" className="roadmap-node-label">{action.label.slice(0, dense ? 33 : 31)}</text>
+        <text x="36" y="12" className="roadmap-node-target">{action.target_profiles[0]?.slice(0, 34) ?? "context review"}</text>
+        <text x="36" y="30" className="roadmap-node-context">{action.affected_service_ids.length ? (contextLabels.get(action.affected_service_ids[0]) ?? action.affected_service_ids[0].replace(/^service:/, "").replace(/^source:/, "")).slice(0, 34) : "unowned evidence"}</text>
       </g>;
     })}
   </svg></div>;

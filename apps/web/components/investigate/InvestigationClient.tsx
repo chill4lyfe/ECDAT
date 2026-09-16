@@ -1,9 +1,9 @@
 "use client";
 
-import { Activity, ArrowRight, Cable, FileSearch, GitBranch, Route, ShieldAlert, SlidersHorizontal, Sparkles, Target } from "lucide-react";
+import { Activity, ArrowRight, Cable, Check, ChevronDown, FileSearch, GitBranch, Route, Search, ShieldAlert, SlidersHorizontal, Sparkles, Target } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppShell, PageHeader } from "@/components/shell/AppShell";
 import { buildMigrationPlan, evaluateRiskScenario, fetchLatestMigrationPlan, fetchLatestScan, runReferenceAssessment } from "@/lib/api";
 import type { Finding, MigrationRoadmap, RiskAssessment, RiskScenarioResult, ScanSummary } from "@/lib/types";
@@ -85,10 +85,10 @@ export function InvestigationClient() {
   }
 
   return <AppShell><div className="page-wrap investigate-page">
-    <PageHeader eyebrow="INVESTIGATION / EVIDENCE-TO-ACTION TRACE" title="Asset Investigation" subtitle="Trace a cryptographic asset from exact evidence through enterprise impact, planning assumptions and recommended migration action without changing the underlying assessment evidence." actions={!scan ? <button className="primary-action" onClick={loadReference} disabled={busy}>{busy ? <Activity className="spin" size={15}/> : <Sparkles size={15}/>} Load Demonstration Assessment</button> : undefined} />
+    <PageHeader eyebrow="INVESTIGATION / EVIDENCE-TO-ACTION TRACE" title="ASSET INVESTIGATION" actions={!scan ? <button className="primary-action" onClick={loadReference} disabled={busy}>{busy ? <Activity className="spin" size={15}/> : <Sparkles size={15}/>} Load Demonstration Assessment</button> : undefined} />
     {error && <div className="error-strip">{error}</div>}
     {scan && <>
-      <section className="investigation-picker panel-v2"><div><Target size={16}/><span>SELECT CRYPTOGRAPHIC ASSET</span></div><select value={assetId} onChange={(e)=>{setAssetId(e.target.value); setScenario(null);}}>{ranked.map((item)=><option key={item.asset.id} value={item.asset.id}>{item.asset.canonical_name} · {item.asset.asset_type.replaceAll("_"," ")}</option>)}</select><Link href="/graph" className="ghost-action">View Dependency Map <ArrowRight size={13}/></Link></section>
+      <section className="investigation-picker panel-v2"><div><Target size={16}/><span>SELECT CRYPTOGRAPHIC ASSET</span></div><AssetPicker items={ranked} assetId={assetId} onSelect={(nextId)=>{setAssetId(nextId); setScenario(null);}}/><Link href="/graph" className="ghost-action">View Dependency Map <ArrowRight size={13}/></Link></section>
       {finding && risk ? <>
         <section className="investigation-flow" aria-label="Investigation path">
           <FlowStep n="01" icon={<ShieldAlert/>} title="Priority" value={`${risk.score ?? 0}/100 · ${risk.priority}`} note={risk.quantum_posture.replaceAll("_"," ")} hot={risk.priority === "critical" || risk.priority === "elevated"}/>
@@ -116,6 +116,42 @@ export function InvestigationClient() {
       </> : <div className="panel-v2 empty-copy">Select an evidence-backed cryptographic asset to investigate.</div>}
     </>}
   </div></AppShell>;
+}
+
+function AssetPicker({ items, assetId, onSelect }: { items: Finding[]; assetId: string; onSelect: (assetId: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const selected = items.find((item) => item.asset.id === assetId) ?? null;
+  const filtered = useMemo(() => {
+    const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const matches = tokens.length ? items.filter((item) => {
+      const haystack = `${item.asset.canonical_name} ${item.asset.asset_type} ${item.asset.algorithm_family ?? ""}`.toLowerCase();
+      return tokens.every((token) => haystack.includes(token));
+    }) : items;
+    return matches.slice(0, 100);
+  }, [items, query]);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: MouseEvent) => { if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+
+  return <div className={`investigation-asset-picker${open ? " open" : ""}`} ref={rootRef}>
+    <button type="button" className="investigation-asset-trigger" onClick={() => { setOpen((value) => !value); setQuery(""); }} aria-haspopup="listbox" aria-expanded={open}>
+      <span><strong>{selected?.asset.canonical_name ?? "Choose an evidence-backed asset"}</strong><small>{selected ? `${selected.asset.asset_type.replaceAll("_", " ")} · ${selected.evidence.length} evidence record${selected.evidence.length === 1 ? "" : "s"}` : `${items.length} assets available`}</small></span><ChevronDown size={15}/>
+    </button>
+    {open && <div className="investigation-asset-menu">
+      <label className="investigation-asset-search"><Search size={14}/><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") setOpen(false); }} placeholder="Search name, type or family…"/></label>
+      <div className="investigation-asset-results" role="listbox" aria-label="Cryptographic assets">
+        {filtered.map((item) => <button type="button" role="option" aria-selected={item.asset.id === assetId} className={item.asset.id === assetId ? "selected" : ""} key={item.asset.id} onClick={() => { onSelect(item.asset.id); setOpen(false); setQuery(""); }}><span><strong>{item.asset.canonical_name}</strong><small>{item.asset.asset_type.replaceAll("_", " ")} · {item.evidence.length} evidence record{item.evidence.length === 1 ? "" : "s"}</small></span>{item.asset.id === assetId && <Check size={14}/>}</button>)}
+        {!filtered.length && <p className="investigation-asset-empty">No assets match this search.</p>}
+      </div>
+      <div className="investigation-asset-footer"><span>{query.trim() ? `${filtered.length} shown` : `${Math.min(items.length, 100)} highest-priority assets shown`}</span><span>{items.length > 100 ? `${items.length} total · search to reach any asset` : `${items.length} total`}</span></div>
+    </div>}
+  </div>;
 }
 
 function FlowStep({n,icon,title,value,note,hot}:{n:string;icon:React.ReactNode;title:string;value:string;note:string;hot?:boolean}) { return <article className={`flow-step panel-v2${hot?" hot":""}`}><span>{n}</span><i>{icon}</i><div><small>{title}</small><strong>{value}</strong><p>{note}</p></div></article>; }

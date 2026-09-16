@@ -14,19 +14,46 @@ type Mode = "sources" | "path" | "reference";
 type SourceKind = AssessmentUploadSource["kind"];
 
 type QueuedSource = AssessmentUploadSource & { id: string };
+type ContextProfile = "evidence_first" | "general_enterprise" | "regulated_long_lived" | "custom";
+type ContextLevel = "unknown" | "low" | "medium" | "high" | "critical";
+type TriState = "unknown" | "yes" | "no";
+type AssessmentForm = {
+  display_name: string; environment: string; owner: string; team: string;
+  quantum_horizon_years: number; data_lifetime_years: number | null; migration_time_years: number | null;
+  data_sensitivity: ContextLevel; business_criticality: ContextLevel;
+  public_exposure: TriState; confidentiality_required: TriState;
+  context_profile: ContextProfile; assumption_basis: "operator" | "estimated";
+};
 
-const defaults = {
+const defaults: AssessmentForm = {
   display_name: "Enterprise Assessment",
   quantum_horizon_years: 15,
-  data_lifetime_years: 12,
-  migration_time_years: 4,
-  data_sensitivity: "high",
-  business_criticality: "high",
+  data_lifetime_years: null,
+  migration_time_years: null,
+  data_sensitivity: "unknown",
+  business_criticality: "unknown",
   environment: "Production",
   owner: "Security Architecture",
   team: "Platform Cryptography",
-  public_exposure: true,
-  confidentiality_required: true,
+  public_exposure: "unknown",
+  confidentiality_required: "unknown",
+  context_profile: "evidence_first",
+  assumption_basis: "operator",
+};
+
+const contextProfiles: Record<Exclude<ContextProfile, "custom">, Partial<AssessmentForm>> = {
+  evidence_first: {
+    data_lifetime_years: null, migration_time_years: null, data_sensitivity: "unknown", business_criticality: "unknown",
+    public_exposure: "unknown", confidentiality_required: "unknown", assumption_basis: "operator",
+  },
+  general_enterprise: {
+    data_lifetime_years: 5, migration_time_years: 3, data_sensitivity: "medium", business_criticality: "medium",
+    public_exposure: "unknown", confidentiality_required: "unknown", assumption_basis: "estimated",
+  },
+  regulated_long_lived: {
+    data_lifetime_years: 12, migration_time_years: 4, data_sensitivity: "high", business_criticality: "high",
+    public_exposure: "yes", confidentiality_required: "yes", assumption_basis: "estimated",
+  },
 };
 
 const sourceOptions: Array<{ kind: SourceKind; title: string; note: string; accept: string; icon: React.ReactNode }> = [
@@ -34,7 +61,7 @@ const sourceOptions: Array<{ kind: SourceKind; title: string; note: string; acce
   { kind: "container_image", title: "Container image", note: "Docker save / OCI TAR · inspected offline, never executed", accept: ".tar,.tgz,.gz", icon: <ServerCog size={18}/> },
   { kind: "bom", title: "CycloneDX BOM", note: "Structured software / cryptographic inventory JSON", accept: ".json,application/json", icon: <FileJson2 size={18}/> },
   { kind: "connector", title: "Enterprise connector export", note: "TLS endpoint, cloud KMS or enterprise PKI JSON", accept: ".json,application/json", icon: <Network size={18}/> },
-  { kind: "context", title: "ECDAT enterprise context", note: "Optional ecdat.context.json · ownership, data lifetime and dependencies", accept: ".json,application/json", icon: <BookOpenCheck size={18}/> },
+  { kind: "context", title: "QDeX enterprise context", note: "Optional ecdat.context.json · ownership, data lifetime and dependencies", accept: ".json,application/json", icon: <BookOpenCheck size={18}/> },
 ];
 
 const kindLabel: Record<SourceKind, string> = {
@@ -81,20 +108,45 @@ export function IntakeClient() {
     event.target.value = "";
   }
 
+  function applyContextProfile(profile: Exclude<ContextProfile, "custom">) {
+    setForm((current) => ({ ...current, ...contextProfiles[profile], context_profile: profile }));
+  }
+
+  function updateContext(patch: Partial<AssessmentForm>) {
+    setForm((current) => ({ ...current, ...patch, context_profile: "custom", assumption_basis: "operator" }));
+  }
+
+  function riskContext() {
+    return {
+      quantum_horizon_years: form.quantum_horizon_years,
+      data_lifetime_years: form.data_lifetime_years,
+      migration_time_years: form.migration_time_years,
+      data_sensitivity: form.data_sensitivity === "unknown" ? null : form.data_sensitivity,
+      business_criticality: form.business_criticality === "unknown" ? null : form.business_criticality,
+      public_exposure: form.public_exposure === "unknown" ? null : form.public_exposure === "yes",
+      confidentiality_required: form.confidentiality_required === "unknown" ? null : form.confidentiality_required === "yes",
+      context_profile: form.context_profile,
+      assumption_basis: form.assumption_basis,
+    };
+  }
+
   async function run() {
     setRunning(true); setError(null); setResult(null);
     try {
       let next: ScanSummary;
-      if (mode === "reference") next = await runReferenceAssessment(form.quantum_horizon_years, {
-        display_name: form.display_name, environment: form.environment, owner: form.owner, team: form.team,
-        data_lifetime_years: form.data_lifetime_years, migration_time_years: form.migration_time_years,
-        data_sensitivity: form.data_sensitivity, business_criticality: form.business_criticality,
-        public_exposure: form.public_exposure, confidentiality_required: form.confidentiality_required,
-      });
-      else if (mode === "path") next = await scanMountedPath({ path, ...form });
+      const context = riskContext();
+      if (mode === "reference") {
+        const { quantum_horizon_years: horizon, ...referenceContext } = context;
+        next = await runReferenceAssessment(horizon, {
+          display_name: form.display_name, environment: form.environment, owner: form.owner, team: form.team,
+          ...referenceContext,
+        });
+      } else if (mode === "path") next = await scanMountedPath({ path, display_name: form.display_name, environment: form.environment, owner: form.owner, team: form.team, ...context });
       else {
         if (!sources.some((source) => source.kind !== "context")) throw new Error("Add at least one evidence source. Enterprise context is optional and cannot be assessed by itself.");
-        next = await uploadMultiSourceAssessment(sources.map(({ file, kind }) => ({ file, kind })), form);
+        next = await uploadMultiSourceAssessment(sources.map(({ file, kind }) => ({ file, kind })), {
+          display_name: form.display_name, environment: form.environment, owner: form.owner, team: form.team, ...context,
+        });
       }
       setResult(next);
     } catch (cause) {
@@ -103,15 +155,15 @@ export function IntakeClient() {
   }
 
   return <AppShell><div className="page-wrap intake-page phase81-intake">
-    <PageHeader eyebrow="ASSESSMENT / ENTERPRISE INPUT" title="New Assessment" subtitle="Build one assessment from the exact systems you are authorized to review. ECDAT correlates evidence across repositories, container images, CycloneDX inventories and operational exports; optional enterprise context can add ownership and dependency knowledge without becoming cryptographic evidence." />
+    <PageHeader eyebrow="ASSESSMENT / ENTERPRISE INPUT" title="NEW ASSESSMENT" />
 
     <section className="intake-layout phase81-intake-layout">
       <article className="panel-v2 intake-source-panel phase81-source-panel">
-        <div className="panel-topline"><div><span className="kicker">STEP 1 / ASSESSMENT SCOPE</span><h2>Choose the evidence ECDAT should combine</h2></div><Import size={19} /></div>
+        <div className="panel-topline"><div><span className="kicker">STEP 1 / ASSESSMENT SCOPE</span></div><Import size={20} /></div>
         <div className="source-tabs phase81-mode-tabs">
           <SourceButton active={mode === "sources"} onClick={() => setMode("sources")} icon={<Layers3 size={17}/>} title="Supplied sources" note="Combine evidence sources and optional enterprise context" />
           <SourceButton active={mode === "path"} onClick={() => setMode("path")} icon={<FolderSearch2 size={17}/>} title="Mounted workspace" note="Analyze an authorized local path" />
-          <SourceButton active={mode === "reference"} onClick={() => setMode("reference")} icon={<Play size={17}/>} title="Demonstration environment" note="Included fictional enterprise showcase" />
+          <SourceButton active={mode === "reference"} onClick={() => { setMode("reference"); applyContextProfile("regulated_long_lived"); }} icon={<Play size={17}/>} title="Demonstration environment" note="Included fictional enterprise showcase" />
         </div>
 
         {mode === "sources" && <div className="phase81-source-builder">
@@ -129,40 +181,54 @@ export function IntakeClient() {
             <div className="phase81-source-queue-head"><div><span className="kicker">SOURCE QUEUE</span><h3>{sources.length ? `${sources.length} supplied item${sources.length === 1 ? "" : "s"}` : "No sources added yet"}</h3></div>{sources.length > 0 && <button type="button" onClick={() => setSources([])}>Clear queue</button>}</div>
             {sources.length ? <div className="phase81-source-list">{sources.map((source, index) => <div key={source.id} className="phase81-source-row">
               <b>{String(index + 1).padStart(2, "0")}</b><div><strong>{source.file.name}</strong><small>{kindLabel[source.kind]} · {fileSize(source.file.size)}</small></div><span>{kindLabel[source.kind]}</span><button type="button" aria-label={`Remove ${source.file.name}`} onClick={() => setSources((current) => current.filter((item) => item.id !== source.id))}><Trash2 size={16}/></button>
-            </div>)}</div> : <div className="phase81-source-empty"><UploadCloud size={25}/><p>Add only the systems needed for this assessment—for example two security-team repositories, two BOMs and one container image. ECDAT treats them as one evidence set and retains which source produced each finding.</p></div>}
+            </div>)}</div> : <div className="phase81-source-empty"><UploadCloud size={30}/></div>}
           </div>
 
           <div className="phase81-connector-explainer">
             <div><Network size={19}/><span><strong>TLS endpoint inventory</strong><small>Observed/configured TLS versions, key exchange and endpoint certificate metadata.</small></span></div>
             <div><CloudCog size={19}/><span><strong>Cloud KMS inventory</strong><small>Managed keys, algorithms, rotation state, provider and region.</small></span></div>
             <div><KeyRound size={19}/><span><strong>Enterprise PKI inventory</strong><small>Certificate algorithms, issuer/profile, expiry and owning service identifiers when supplied.</small></span></div>
-            <p>These are operational/control-plane exports—not a claim of full runtime instrumentation. When supplied, they become traceable evidence in the same normalization, graph, risk and migration pipeline as repository findings.</p>
+            <p>OPERATIONAL EXPORTS - NOT FULL RUNTIME INSTRUMENTATION. ONCE SUPPLIED, THEY ENTER THE SAME PIPELINE FOR NORMALIZATION, GRAPHING, RISK, AND MIGRATION.</p>
           </div>
-          <div className="phase85-context-intake-note"><BookOpenCheck size={18}/><div><strong>Enterprise context is optional</strong><p>Upload one <code>ecdat.context.json</code> alongside these sources when your organization can provide service ownership, protected-data lifetime or explicit dependencies. It changes interpretation and sequencing—not the underlying scanner evidence.</p></div><Link href="/context-guide" className="ghost-action">OPEN CONTEXT GUIDE <ArrowRight size={13}/></Link></div>
+          <div className="phase85-context-intake-note"><BookOpenCheck size={18}/><div><strong>ENTERPRISE CONTEXT?</strong><p>Upload an <code>ecdat.context.json</code> alongside these sources to include ownership, criticalities, dependencies and business topology. Learn more in the <strong>Enterprise Context Guide</strong>.</p></div><Link href="/context-guide" className="ghost-action">OPEN CONTEXT GUIDE <ArrowRight size={13}/></Link></div>
         </div>}
 
-        {mode === "path" && <label className="field-block phase81-mounted"><span>Mounted workspace path</span><input value={path} onChange={(e: ChangeEvent<HTMLInputElement>) => setPath(e.target.value)} /><small>Only paths inside configured scan roots are accepted. ECDAT never deletes the original mounted directory during an assessment reset.</small></label>}
+        {mode === "path" && <label className="field-block phase81-mounted"><span>Mounted workspace path</span><input value={path} onChange={(e: ChangeEvent<HTMLInputElement>) => setPath(e.target.value)} /><small>Only paths inside configured scan roots are accepted. QDeX never deletes the original mounted directory during an assessment reset.</small></label>}
         {mode === "reference" && <div className="reference-disclosure"><ShieldCheck size={22} /><div><strong>DEMONSTRATION ENVIRONMENT</strong><p>This analyzes the bundled fictional Asteria Financial Services environment. It is demonstration input only; findings, relationships, risk and migration outputs still pass through the same analysis pipeline used for user-supplied assessments.</p></div></div>}
       </article>
 
-      <article className="panel-v2 intake-context-panel">
-        <div className="panel-topline"><div><span className="kicker">STEP 2 / PLANNING CONTEXT</span><h2>Assessment-wide planning assumptions</h2></div><ShieldCheck size={19} /></div>
-        <p className="phase81-context-note">These values are explicit operator inputs used where richer enterprise context is unavailable. ECDAT does not infer business criticality or data lifetime from folder names.</p>
-        <div className="intake-fields">
-          <label><span>Assessment name</span><input value={form.display_name} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, display_name: e.target.value })} /></label>
-          <label><span>Environment</span><input value={form.environment} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, environment: e.target.value })} /></label>
-          <label><span>Owner</span><input value={form.owner} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, owner: e.target.value })} /></label>
-          <label><span>Team</span><input value={form.team} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, team: e.target.value })} /></label>
-          <label><span>Quantum planning horizon</span><div className="number-field"><input type="number" min="1" max="50" value={form.quantum_horizon_years} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, quantum_horizon_years: Number(e.target.value) })} /><b>years</b></div></label>
-          <label><span>Data lifetime</span><div className="number-field"><input type="number" min="0" max="100" value={form.data_lifetime_years} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, data_lifetime_years: Number(e.target.value) })} /><b>years</b></div></label>
-          <label><span>Migration lead time</span><div className="number-field"><input type="number" min="0" max="50" value={form.migration_time_years} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, migration_time_years: Number(e.target.value) })} /><b>years</b></div></label>
-          <label><span>Data sensitivity</span><select value={form.data_sensitivity} onChange={(e: ChangeEvent<HTMLSelectElement>) => setForm({ ...form, data_sensitivity: e.target.value })}><option>low</option><option>medium</option><option>high</option><option>critical</option></select></label>
-          <label><span>Business criticality</span><select value={form.business_criticality} onChange={(e: ChangeEvent<HTMLSelectElement>) => setForm({ ...form, business_criticality: e.target.value })}><option>low</option><option>medium</option><option>high</option><option>critical</option></select></label>
+      <article className="panel-v2 intake-context-panel phase9-context-panel">
+        <div className="panel-topline"><div><span className="kicker">STEP 2 / RISK CONTEXT</span></div><ShieldCheck size={20} /></div>
+        
+        <div className="phase9-context-profiles" aria-label="Risk context starting profile">
+          <button type="button" className={form.context_profile === "evidence_first" ? "active" : ""} onClick={() => applyContextProfile("evidence_first")}><strong>Evidence first</strong><small>No business assumptions beyond the quantum planning horizon.</small></button>
+          <button type="button" className={form.context_profile === "general_enterprise" ? "active" : ""} onClick={() => applyContextProfile("general_enterprise")}><strong>General enterprise</strong><small>Estimated starter values; review before relying on prioritization.</small></button>
+          <button type="button" className={form.context_profile === "regulated_long_lived" ? "active" : ""} onClick={() => applyContextProfile("regulated_long_lived")}><strong>Regulated / long-lived</strong><small>Estimated high-confidentiality planning profile.</small></button>
         </div>
-        <div className="binary-context">
-          <label><input type="checkbox" checked={form.public_exposure} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, public_exposure: e.target.checked })} /><span>Publicly exposed workload</span></label>
-          <label><input type="checkbox" checked={form.confidentiality_required} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, confidentiality_required: e.target.checked })} /><span>Long-term confidentiality required</span></label>
-        </div>
+        <div className="phase9-context-status"><span>{form.context_profile === "custom" ? "CUSTOM OPERATOR CONTEXT" : form.assumption_basis === "estimated" ? "ESTIMATED STARTING PROFILE" : "EVIDENCE-FIRST CONTEXT"}</span><p>Profiles are planning inputs, not discovered evidence. A supplied <code>ecdat.context.json</code> can later override these defaults at service/data-class scope.</p></div>
+
+        <section className="phase91-context-group">
+          <div className="phase91-context-group-head"><span>Assessment identity</span></div>
+          <div className="intake-fields phase91-context-grid">
+            <label><span>Assessment name</span><input value={form.display_name} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, display_name: e.target.value })} /></label>
+            <label><span>Environment</span><input value={form.environment} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, environment: e.target.value })} /></label>
+            <label><span>Owner</span><input value={form.owner} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, owner: e.target.value })} /></label>
+            <label><span>Team</span><input value={form.team} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, team: e.target.value })} /></label>
+          </div>
+        </section>
+
+        <section className="phase91-context-group planning">
+          <div className="phase91-context-group-head"><span>Planning assumptions</span><p>QDeX never assumes Quantum arrival or Business criticalities themselves.</p></div>
+          <div className="intake-fields phase91-context-grid">
+            <label><span>Quantum planning horizon (Z)</span><div className="number-field"><input type="number" min="1" max="50" value={form.quantum_horizon_years} onChange={(e: ChangeEvent<HTMLInputElement>) => updateContext({ quantum_horizon_years: Number(e.target.value) || 15 })} /><b>years</b></div></label>
+            <label><span>Data lifetime (X)</span><div className="number-field"><input type="number" min="0" max="100" placeholder="Unknown" value={form.data_lifetime_years ?? ""} onChange={(e: ChangeEvent<HTMLInputElement>) => updateContext({ data_lifetime_years: e.target.value === "" ? null : Number(e.target.value) })} /><b>years</b></div></label>
+            <label><span>Migration lead time (Y)</span><div className="number-field"><input type="number" min="0" max="50" placeholder="Unknown" value={form.migration_time_years ?? ""} onChange={(e: ChangeEvent<HTMLInputElement>) => updateContext({ migration_time_years: e.target.value === "" ? null : Number(e.target.value) })} /><b>years</b></div></label>
+            <label><span>Data sensitivity</span><select value={form.data_sensitivity} onChange={(e: ChangeEvent<HTMLSelectElement>) => updateContext({ data_sensitivity: e.target.value as ContextLevel })}><option value="unknown">Unknown</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></label>
+            <label><span>Business criticality</span><select value={form.business_criticality} onChange={(e: ChangeEvent<HTMLSelectElement>) => updateContext({ business_criticality: e.target.value as ContextLevel })}><option value="unknown">Unknown</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></label>
+            <label><span>Public exposure</span><select value={form.public_exposure} onChange={(e: ChangeEvent<HTMLSelectElement>) => updateContext({ public_exposure: e.target.value as TriState })}><option value="unknown">Unknown</option><option value="yes">Yes</option><option value="no">No</option></select></label>
+            <label><span>Long-term confidentiality</span><select value={form.confidentiality_required} onChange={(e: ChangeEvent<HTMLSelectElement>) => updateContext({ confidentiality_required: e.target.value as TriState })}><option value="unknown">Unknown</option><option value="yes">Required</option><option value="no">Not required</option></select></label>
+          </div>
+        </section>
         <button className="primary-action intake-run" onClick={run} disabled={running || (mode === "sources" && !sources.some((source) => source.kind !== "context"))}>{running ? <Activity className="spin" size={17} /> : <Play size={16} fill="currentColor" />}{running ? "CORRELATING SUPPLIED EVIDENCE" : mode === "sources" ? `START ASSESSMENT · ${sources.filter((source) => source.kind !== "context").length} EVIDENCE SOURCE${sources.filter((source) => source.kind !== "context").length === 1 ? "" : "S"}` : "START ENTERPRISE ASSESSMENT"}</button>
         {error && <div className="inline-error">{error}</div>}
       </article>

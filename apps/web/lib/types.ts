@@ -9,7 +9,7 @@ export type Finding = {
   asset: { id: string; asset_type: string; canonical_name: string; version?: string | null; algorithm_family?: string | null; key_size_bits?: number | null; mode?: string | null; properties: Record<string, unknown> };
   evidence: Evidence[]; confidence: Confidence; tags: string[];
 };
-export type ScannerExecution = { scanner_id: string; status: string; finding_count: number; duration_ms: number; error?: string | null };
+export type ScannerExecution = { scanner_id: string; status: string; finding_count: number; duration_ms: number; error?: string | null; metrics?: Record<string, unknown> };
 export type GraphNode = { id: string; node_type: string; label: string; properties: Record<string, unknown> };
 export type GraphEdge = { id: string; source_id: string; target_id: string; edge_type: string; properties: Record<string, unknown> };
 export type RiskFactor = { code: string; label: string; contribution: number; rationale: string };

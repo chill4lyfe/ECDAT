@@ -12,6 +12,7 @@ from ecdat.domain.models import CryptoAsset, Evidence, Finding, ScanRequest, Sou
 from ecdat.evidence.fingerprint import evidence_fingerprint
 from ecdat.scanners.base import ScannerCapabilities
 from ecdat.scanners.fs import iter_files, relative_path, resolve_target_root
+from ecdat.scanners.source.openssl_detector import detect_openssl_line
 
 _SOURCE_SUFFIXES = frozenset({".py", ".java", ".js", ".jsx", ".ts", ".tsx", ".go", ".rs", ".cs", ".c", ".cc", ".cpp", ".h", ".hpp"})
 
@@ -181,7 +182,7 @@ def _jwt_family(algorithm: str) -> str:
 
 class SourceCodeScanner:
     scanner_id = "source.static"
-    version = "0.1.0"
+    version = "0.2.0"
     capabilities = ScannerCapabilities(
         target_kinds=frozenset({TargetKind.DIRECTORY, TargetKind.REPOSITORY}),
         deterministic=True,
@@ -191,16 +192,25 @@ class SourceCodeScanner:
     async def scan(self, request: ScanRequest) -> tuple[Finding, ...]:
         root = resolve_target_root(request.target.locator)
         findings: list[Finding] = []
+        files_scanned = 0
+        unreadable = 0
         for path in iter_files(root, suffixes=_SOURCE_SUFFIXES):
             try:
                 text = path.read_text(encoding="utf-8", errors="replace")
             except OSError:
+                unreadable += 1
                 continue
+            files_scanned += 1
             if path.suffix.lower() == ".py":
                 findings.extend(self._scan_python(root, path, text, request))
             else:
                 findings.extend(self._scan_generic(root, path, text, request))
             findings.extend(self._scan_keylike_assignment(root, path, text, request))
+        self.last_metrics = {
+            "files_scanned": files_scanned,
+            "unreadable_files": unreadable,
+            "raw_findings": len(findings),
+        }
         return tuple(findings)
 
     def _scan_python(self, root: Path, path: Path, text: str, request: ScanRequest) -> list[Finding]:
@@ -237,20 +247,54 @@ class SourceCodeScanner:
 
     def _scan_generic(self, root: Path, path: Path, text: str, request: ScanRequest) -> list[Finding]:
         findings: list[Finding] = []
+        c_family = path.suffix.lower() in {".c", ".cc", ".cpp", ".h", ".hpp"}
         for line_number, line in enumerate(text.splitlines(), start=1):
-            for pattern, signal, method in _GENERIC_PATTERNS:
-                if pattern.search(line):
-                    findings.append(
-                        self._finding(
-                            request,
-                            root,
-                            path,
-                            line_number,
-                            signal,
-                            method,
-                            {"language_suffix": path.suffix.lower()},
-                        )
+            semantic_signals = detect_openssl_line(line) if c_family else ()
+            semantic_keys = {
+                (item.canonical_name.lower(), (item.family or "").lower())
+                for item in semantic_signals
+            }
+            for detected in semantic_signals:
+                attrs = {"language_suffix": path.suffix.lower(), **detected.attributes}
+                if detected.purpose:
+                    attrs["operation"] = detected.purpose
+                findings.append(
+                    self._finding(
+                        request,
+                        root,
+                        path,
+                        line_number,
+                        Signal(
+                            detected.canonical_name,
+                            family=detected.family,
+                            mode=detected.mode,
+                            key_size_bits=detected.key_size_bits,
+                            purpose=detected.purpose,
+                            confidence=detected.confidence,
+                        ),
+                        detected.method,
+                        attrs,
+                        tags=("source", "openssl", "semantic"),
                     )
+                )
+            for pattern, signal, method in _GENERIC_PATTERNS:
+                if not pattern.search(line):
+                    continue
+                # Preserve the legacy signal surface, but do not count the same source
+                # occurrence twice when Phase 9 already resolved it more precisely.
+                if c_family and (signal.canonical_name.lower(), (signal.family or "").lower()) in semantic_keys:
+                    continue
+                findings.append(
+                    self._finding(
+                        request,
+                        root,
+                        path,
+                        line_number,
+                        signal,
+                        method,
+                        {"language_suffix": path.suffix.lower()},
+                    )
+                )
         return findings
 
     def _scan_keylike_assignment(self, root: Path, path: Path, text: str, request: ScanRequest) -> list[Finding]:

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
+import hashlib
 from uuid import UUID
 
 from ecdat.domain.enums import GraphEdgeType, GraphNodeType
@@ -71,6 +73,9 @@ class EnterpriseGraphBuilder:
             self._add_manifest_graph(manifest, root.id, nodes, edges)
 
         sources = self._add_supplied_sources(target, root.id, nodes, edges)
+        component_by_path = self._add_technical_components(
+            root.id, findings, sources, nodes, edges
+        )
 
         for finding in findings:
             crypto = asset_node(finding.asset)
@@ -83,6 +88,20 @@ class EnterpriseGraphBuilder:
                     evidence_count=sum(1 for evidence in finding.evidence if self._evidence_matches_source(source, evidence.location.path)),
                     provenance="supplied_source",
                     source_kind=str(source.get("kind", "artifact")),
+                )
+                edges[relation.id] = relation
+
+            component_counts = Counter(
+                component_by_path[evidence.location.path]
+                for evidence in finding.evidence
+                if evidence.location.path in component_by_path
+            )
+            for component_id, evidence_count in component_counts.items():
+                relation = _edge(
+                    component_id, crypto.id, GraphEdgeType.USES,
+                    evidence_count=evidence_count,
+                    provenance="observed_evidence",
+                    technical_context=True,
                 )
                 edges[relation.id] = relation
 
@@ -117,6 +136,81 @@ class EnterpriseGraphBuilder:
             asset_contexts=contexts,
             manifest_loaded=manifest is not None,
         )
+
+    def _add_technical_components(
+        self,
+        root_id: str,
+        findings: tuple[Finding, ...],
+        sources: tuple[dict[str, object], ...],
+        nodes: dict[str, GraphNode],
+        edges: dict[str, GraphEdge],
+    ) -> dict[str, str]:
+        """Add evidence-derived source/module buckets without claiming business topology."""
+
+        records: list[tuple[str, str, tuple[str, ...]]] = []
+        by_owner_dirs: dict[str, list[tuple[str, ...]]] = {}
+        for finding in findings:
+            for evidence in finding.evidence:
+                path = evidence.location.path
+                if not path:
+                    continue
+                source = next((item for item in sources if self._evidence_matches_source(item, path)), None)
+                owner_id = _source_node_id(str(source["id"])) if source else root_id
+                rel = path
+                if source is not None:
+                    prefix = str(source.get("path_prefix") or "").rstrip("/")
+                    if prefix and (path == prefix or path.startswith(prefix + "/")):
+                        rel = path[len(prefix):].lstrip("/")
+                parts = tuple(part for part in rel.replace("\\", "/").split("/") if part)
+                dirs = parts[:-1] if len(parts) > 1 else ()
+                records.append((path, owner_id, dirs))
+                by_owner_dirs.setdefault(owner_id, []).append(dirs)
+
+        def common_prefix(values: list[tuple[str, ...]]) -> tuple[str, ...]:
+            if not values:
+                return ()
+            prefix = list(values[0])
+            for value in values[1:]:
+                limit = min(len(prefix), len(value))
+                index = 0
+                while index < limit and prefix[index] == value[index]:
+                    index += 1
+                prefix = prefix[:index]
+                if not prefix:
+                    break
+            return tuple(prefix)
+
+        common_by_owner = {owner: common_prefix(values) for owner, values in by_owner_dirs.items()}
+        component_by_path: dict[str, str] = {}
+        for path, owner_id, dirs in records:
+            common = common_by_owner.get(owner_id, ())
+            remainder = dirs[len(common):] if dirs[:len(common)] == common else dirs
+            if not remainder:
+                continue
+            component_name = remainder[0]
+            component_prefix = "/".join((*common, component_name))
+            digest = hashlib.sha256(f"{owner_id}|{component_prefix}".encode("utf-8")).hexdigest()[:18]
+            component_id = f"component:{digest}"
+            if component_id not in nodes:
+                nodes[component_id] = GraphNode(
+                    id=component_id,
+                    node_type=GraphNodeType.INFRASTRUCTURE,
+                    label=component_name,
+                    properties={
+                        "technical_component": True,
+                        "path_prefix": component_prefix,
+                        "provenance": "observed_evidence",
+                        "business_topology": False,
+                    },
+                )
+                relation = _edge(
+                    owner_id, component_id, GraphEdgeType.CONTAINS,
+                    provenance="observed_evidence",
+                    technical_context=True,
+                )
+                edges[relation.id] = relation
+            component_by_path[path] = component_id
+        return component_by_path
 
     def _add_supplied_sources(
         self,
