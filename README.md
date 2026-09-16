@@ -49,6 +49,12 @@ Every source keeps its own provenance. If the same cryptographic asset shows up 
 
 ---
 
+### BENCHMARKED ON REAL WORLD REPOS
+
+![BENCHMARK IMAGE](./apps/web/public/benchmark.png)
+
+---
+
 ## What QDeX can do
 
 - discover cryptographic usage across multiple enterprise artifact types
