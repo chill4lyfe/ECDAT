@@ -85,9 +85,7 @@ export default function Home() {
         </div>
 
         <aside className="landing-brief panel-v2" aria-label="Platform overview">
-          <span className="kicker">From evidence to action</span>
-          <h2>A single decision path for cryptographic modernization</h2>
-          <p>Technical findings stay connected to business context, system impact, planning assumptions and migration decisions.</p>
+          <h2>A UNIFIED PLANNER FOR CRYPTOGRAPHIC MODERNIZATION</h2>
           <div className="landing-brief-flow">
             <div><b>01</b><span>Enterprise inputs</span></div>
             <i />
@@ -97,14 +95,12 @@ export default function Home() {
             <i />
             <div><b>04</b><span>Migration plan</span></div>
           </div>
-          <div className="landing-brief-note"><ShieldCheck size={17} /><p>Uncertainty and incomplete coverage are shown explicitly rather than converted into false certainty.</p></div>
         </aside>
       </section>
 
       <section className="landing-section-intro">
         <span className="kicker">How QDeX works</span>
         <h2>Clear enough for decision-makers. Detailed enough for security engineers.</h2>
-        <p>The platform keeps technical depth available while presenting each stage in plain language and preserving a traceable evidence chain.</p>
       </section>
 
       <section className="landing-journey">
